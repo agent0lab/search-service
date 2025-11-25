@@ -75,6 +75,22 @@ npm run test:watch
 npm run deploy
 ```
 
+### Live Deployment
+
+The service is currently deployed at:
+**https://agent0-semantic-search.dawid-pisarczyk.workers.dev**
+
+You can test it with:
+```bash
+# Health check
+curl https://agent0-semantic-search.dawid-pisarczyk.workers.dev/health
+
+# Search query
+curl -X POST https://agent0-semantic-search.dawid-pisarczyk.workers.dev/api/search \
+  -H "Content-Type: application/json" \
+  -d '{"query": "defi yield optimization", "topK": 5}'
+```
+
 ## API Documentation
 
 ### POST /api/search
