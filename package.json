@@ -18,6 +18,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@pinecone-database/pinecone": "^2.0.0",
     "agent0-ts": "file:../agent0-ts",
     "hono": "^4.0.0"
   },
