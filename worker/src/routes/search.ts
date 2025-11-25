@@ -1,13 +1,11 @@
 import type { Context } from 'hono';
 import type { Env } from '../types.js';
-import {
-  type SemanticQueryRequest,
-  type SemanticSearchResponse,
-  SemanticSearchManager,
-  resolveSemanticSearchProviders,
-  VeniceEmbeddingProvider,
-  PineconeVectorStore,
-} from 'agent0-ts';
+import type { SemanticQueryRequest } from '../utils/interfaces.js';
+import type { SemanticSearchResponse } from '../utils/types.js';
+import { SemanticSearchManager } from '../utils/manager.js';
+import { resolveSemanticSearchProviders } from '../utils/config.js';
+import { VeniceEmbeddingProvider } from '../utils/providers/venice-embedding.js';
+import { PineconeVectorStore } from '../utils/providers/pinecone-vector-store.js';
 
 export async function searchHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
   try {
