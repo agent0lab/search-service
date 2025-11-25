@@ -12,7 +12,7 @@ describe('Integration Tests (requires dev server)', () => {
       const res = await fetch(`${BASE_URL}/health`);
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = await res.json() as any;
       expect(data).toHaveProperty('status');
       expect(data).toHaveProperty('services');
       expect(data.services).toHaveProperty('venice');
@@ -33,12 +33,12 @@ describe('Integration Tests (requires dev server)', () => {
 
       // Check if we got a valid response (200) or see what the error is
       if (res.status !== 200) {
-        const errorData = await res.json();
+        const errorData = await res.json() as any;
         console.log('Search error:', errorData);
         // For now, just check it's not a validation error
         expect(res.status).not.toBe(400);
       } else {
-        const data = await res.json();
+        const data = await res.json() as any;
         
         expect(data).toHaveProperty('query');
         expect(data).toHaveProperty('results');
@@ -63,7 +63,7 @@ describe('Integration Tests (requires dev server)', () => {
       });
 
       if (res.status === 200) {
-        const data = await res.json();
+        const data = await res.json() as any;
         
         // All results should match the filter
         for (const result of data.results) {
@@ -93,7 +93,7 @@ describe('Integration Tests (requires dev server)', () => {
       });
 
       if (res.status === 200) {
-        const data = await res.json();
+        const data = await res.json() as any;
         
         // All results should have score >= minScore
         for (const result of data.results) {
@@ -116,7 +116,7 @@ describe('Integration Tests (requires dev server)', () => {
       });
 
       if (res.status === 200) {
-        const data = await res.json();
+        const data = await res.json() as any;
         
         expect(data.results.length).toBeLessThanOrEqual(3);
       } else {

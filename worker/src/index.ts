@@ -8,12 +8,13 @@ const app = new Hono<{ Bindings: Env }>();
 // Error handling middleware
 app.onError((err, c) => {
   console.error('Error:', err);
+  const status = (err as any).status || 500;
   return c.json(
     {
       error: err.message || 'Internal server error',
-      status: err.status || 500,
+      status,
     },
-    err.status || 500
+    status
   );
 });
 

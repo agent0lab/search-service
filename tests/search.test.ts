@@ -14,7 +14,7 @@ describe('Search Service API', () => {
       const res = await fetch(`${BASE_URL}/health`);
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = await res.json() as any;
       expect(data).toHaveProperty('status');
       expect(data).toHaveProperty('services');
       expect(data).toHaveProperty('timestamp');
@@ -24,7 +24,7 @@ describe('Search Service API', () => {
 
     it('should return valid JSON', async () => {
       const res = await fetch(`${BASE_URL}/health`);
-      const data = await res.json();
+      const data = await res.json() as any;
       expect(typeof data.status).toBe('string');
       expect(['ok', 'degraded']).toContain(data.status);
     });
@@ -39,7 +39,7 @@ describe('Search Service API', () => {
       });
 
       expect(res.status).toBe(400);
-      const data = await res.json();
+      const data = await res.json() as any;
       expect(data).toHaveProperty('error');
     });
 
@@ -69,7 +69,7 @@ describe('Search Service API', () => {
       // If it's 500, that's okay - means the service is trying to process it
       // If it's 200, great - we got results
       if (res.status === 200) {
-        const data = await res.json();
+        const data = await res.json() as any;
         expect(data).toHaveProperty('query');
         expect(data).toHaveProperty('results');
         expect(data).toHaveProperty('total');
@@ -106,7 +106,7 @@ describe('Search Service API', () => {
       });
 
       if (res.status === 200) {
-        const data = await res.json();
+        const data = await res.json() as any;
         
         // Validate response structure
         expect(data).toHaveProperty('query');
@@ -132,7 +132,7 @@ describe('Search Service API', () => {
       const res = await fetch(`${BASE_URL}/unknown`);
       expect(res.status).toBe(404);
       
-      const data = await res.json();
+      const data = await res.json() as any;
       expect(data).toHaveProperty('error');
     });
 
