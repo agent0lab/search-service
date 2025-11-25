@@ -1,6 +1,11 @@
 name = "agent0-semantic-search"
 main = "worker/src/index.ts"
 compatibility_date = "2024-11-25"
+node_compat = true
+
+# Include utils directory in the build
+[build]
+command = ""
 
 # Environment variables
 # Required secrets (set via: wrangler secret put <NAME>)

@@ -7,7 +7,9 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [
     "semantic-search",
@@ -18,14 +20,17 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@pinecone-database/pinecone": "^2.0.0",
+    "@pinecone-database/pinecone": "^6.1.2",
     "agent0-ts": "file:../agent0-ts",
     "hono": "^4.0.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241106.0",
     "@types/node": "^20.10.0",
+    "@vitest/ui": "^1.0.0",
+    "miniflare": "^3.20241125.1",
     "typescript": "^5.3.3",
+    "vitest": "^1.0.0",
     "wrangler": "^3.19.0"
   }
 }

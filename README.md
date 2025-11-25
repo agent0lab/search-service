@@ -60,6 +60,12 @@ npm run dev
 
 # Type check
 npm run type-check
+
+# Run tests (requires dev server running)
+npm run test
+
+# Run tests in watch mode
+npm run test:watch
 ```
 
 ## Deployment
@@ -147,6 +153,32 @@ Check service health and connectivity.
 ### Optional
 
 - `PINECONE_NAMESPACE`: Pinecone namespace (if using namespaces)
+
+## Testing
+
+The project includes comprehensive tests using Vitest:
+
+- **Unit/Integration Tests** (`tests/search.test.ts`): Tests API endpoints, request validation, and response formats
+- **Integration Tests** (`tests/integration.test.ts`): End-to-end tests against the running dev server
+
+To run tests:
+
+1. Start the dev server in one terminal:
+   ```bash
+   npm run dev
+   ```
+
+2. Run tests in another terminal:
+   ```bash
+   npm run test
+   ```
+
+The tests verify:
+- Health check endpoint functionality
+- Search endpoint request validation
+- Response format correctness
+- Error handling (404, 400, etc.)
+- Filter and parameter handling
 
 ## Project Structure
 

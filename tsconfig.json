@@ -19,7 +19,7 @@
       "~/*": ["./worker/src/*"]
     }
   },
-  "include": ["worker/**/*"],
+  "include": ["worker/**/*", "tests/**/*"],
   "exclude": ["node_modules", ".wrangler", "dist"]
 }
 

@@ -119,10 +119,14 @@ export class PineconeVectorStore implements VectorStoreProvider {
     }
 
     if (filters.inputMode) {
+      // For array fields in Pinecone, $in checks if the field value is in the provided array
+      // Since defaultInputModes is an array like ["text"], we check if "text" is in that array
+      // Pinecone's $in works: field is an array, and we check if any element matches
       result.defaultInputModes = { $in: [filters.inputMode] };
     }
 
     if (filters.outputMode) {
+      // Same for outputModes
       result.defaultOutputModes = { $in: [filters.outputMode] };
     }
 
