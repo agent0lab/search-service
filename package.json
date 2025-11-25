@@ -21,7 +21,7 @@
   "license": "MIT",
   "dependencies": {
     "@pinecone-database/pinecone": "^6.1.2",
-    "agent0-ts": "file:../agent0-ts",
+    "agent0-sdk": "^0.31.0",
     "hono": "^4.0.0"
   },
   "devDependencies": {
@@ -32,6 +32,9 @@
     "typescript": "^5.3.3",
     "vitest": "^1.0.0",
     "wrangler": "^3.19.0"
+  },
+  "overrides": {
+    "@pinecone-database/pinecone": "^6.1.2"
   }
 }
 
