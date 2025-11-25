@@ -118,20 +118,18 @@ export class PineconeVectorStore implements VectorStoreProvider {
       result.capabilities = { $in: filters.capabilities };
     }
 
-    if (filters.inputMode) {
-      // For array fields in Pinecone, $in checks if the field value is in the provided array
-      // Since defaultInputModes is an array like ["text"], we check if "text" is in that array
-      // Pinecone's $in works: field is an array, and we check if any element matches
-      result.defaultInputModes = { $in: [filters.inputMode] };
+    if (filters.defaultInputMode) {
+      // Map to defaultInputModes field in Pinecone metadata
+      result.defaultInputModes = { $in: [filters.defaultInputMode] };
     }
 
-    if (filters.outputMode) {
-      // Same for outputModes
-      result.defaultOutputModes = { $in: [filters.outputMode] };
+    if (filters.defaultOutputMode) {
+      // Map to defaultOutputModes field in Pinecone metadata
+      result.defaultOutputModes = { $in: [filters.defaultOutputMode] };
     }
 
     for (const [key, value] of Object.entries(filters)) {
-      if (key === 'capabilities' || key === 'inputMode' || key === 'outputMode' || key === 'minScore') {
+      if (key === 'capabilities' || key === 'defaultInputMode' || key === 'defaultOutputMode' || key === 'minScore') {
         continue;
       }
       result[key] = value;

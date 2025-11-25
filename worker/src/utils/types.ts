@@ -16,8 +16,8 @@ export interface SemanticAgentRecord {
 
 export interface SemanticSearchFilters {
   capabilities?: string[];
-  inputMode?: string;
-  outputMode?: string;
+  defaultInputMode?: string;
+  defaultOutputMode?: string;
   minScore?: number;
   [key: string]: unknown;
 }

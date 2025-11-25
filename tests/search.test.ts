@@ -88,7 +88,7 @@ describe('Search Service API', () => {
           minScore: 0.5,
           filters: {
             capabilities: ['defi'],
-            inputMode: 'text',
+            defaultInputMode: 'text',
           },
         }),
       });

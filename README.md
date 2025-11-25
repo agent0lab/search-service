@@ -89,8 +89,8 @@ Perform a semantic search for agents.
   "minScore": 0.5,
   "filters": {
     "capabilities": ["defi", "yield"],
-    "inputMode": "text",
-    "outputMode": "json"
+    "defaultInputMode": "text",
+    "defaultOutputMode": "json"
   }
 }
 ```
@@ -123,8 +123,8 @@ Perform a semantic search for agents.
 - `minScore` (optional): Minimum similarity score threshold
 - `filters` (optional): Metadata filters
   - `capabilities`: Array of capability strings
-  - `inputMode`: Filter by input mode
-  - `outputMode`: Filter by output mode
+  - `defaultInputMode`: Filter by default input mode (e.g., "text", "mcp")
+  - `defaultOutputMode`: Filter by default output mode (e.g., "json")
 
 ### GET /health
 
