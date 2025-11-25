@@ -1,6 +1,7 @@
 import type { Context } from 'hono';
 import type { Env } from '../types.js';
-import type { SemanticQueryRequest, SemanticSearchResponse } from '../../utils/types.js';
+import type { SemanticQueryRequest } from '../../utils/interfaces.js';
+import type { SemanticSearchResponse } from '../../utils/types.js';
 import { SemanticSearchManager } from '../../utils/manager.js';
 import { resolveSemanticSearchProviders } from '../../utils/config.js';
 import { VeniceEmbeddingProvider } from '../../utils/providers/venice-embedding.js';
