@@ -125,6 +125,7 @@ Perform a semantic search for agents.
   - `capabilities`: Array of capability strings
   - `defaultInputMode`: Filter by default input mode (e.g., "text", "mcp")
   - `defaultOutputMode`: Filter by default output mode (e.g., "json")
+  - Custom filters: Any metadata field can be filtered (e.g., `chainId`, `active`, `x402support`)
 
 ### GET /health
 
@@ -184,15 +185,18 @@ The tests verify:
 
 ```
 search-service/
-├── utils/              # Semantic search core code
-│   ├── providers/      # Embedding and vector store providers
-│   ├── manager.ts      # Search manager
-│   ├── config.ts       # Provider configuration
-│   └── types.ts        # Type definitions
 ├── worker/             # Cloudflare Workers code
 │   └── src/
+│       ├── utils/      # Semantic search core code
+│       │   ├── providers/  # Embedding and vector store providers
+│       │   ├── manager.ts  # Search manager
+│       │   ├── config.ts   # Provider configuration
+│       │   └── types.ts    # Type definitions
 │       ├── routes/     # API route handlers
+│       │   ├── health.ts
+│       │   └── search.ts
 │       └── index.ts    # Worker entry point
+├── tests/              # Test suite
 ├── wrangler.toml       # Cloudflare Workers configuration
 └── package.json
 ```
