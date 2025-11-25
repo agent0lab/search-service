@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import type { Env } from './types.js';
+import { healthHandler } from './routes/health.js';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -23,10 +24,8 @@ app.use('*', async (c, next) => {
   c.header('Access-Control-Allow-Headers', 'Content-Type');
 });
 
-// Health check route (will be implemented in next commit)
-app.get('/health', async (c) => {
-  return c.json({ status: 'ok' });
-});
+// Health check route
+app.get('/health', healthHandler);
 
 // Search route (will be implemented in later commit)
 app.post('/api/search', async (c) => {
