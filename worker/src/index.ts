@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { Env } from './types.js';
 import { healthHandler } from './routes/health.js';
+import { searchHandler } from './routes/search.js';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -27,10 +28,8 @@ app.use('*', async (c, next) => {
 // Health check route
 app.get('/health', healthHandler);
 
-// Search route (will be implemented in later commit)
-app.post('/api/search', async (c) => {
-  return c.json({ message: 'Not implemented yet' }, 501);
-});
+// Search route
+app.post('/api/search', searchHandler);
 
 // 404 handler
 app.notFound((c) => {
