@@ -1,0 +1,31 @@
+{
+  "name": "agent0-semantic-search-service",
+  "version": "0.1.0",
+  "description": "Standalone semantic search service for ERC-8004 agents using Cloudflare Workers",
+  "type": "module",
+  "main": "worker/src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "semantic-search",
+    "vector-search",
+    "erc-8004",
+    "cloudflare-workers"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "agent0-ts": "file:../agent0-ts",
+    "hono": "^4.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241106.0",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3",
+    "wrangler": "^3.19.0"
+  }
+}
+
