@@ -19,9 +19,9 @@ command = ""
 [vars]
 # Non-secret environment variables can be added here
 
-# Cron triggers (commented out for now - will be enabled in future commits)
-# [[triggers.crons]]
-# cron = "*/15 * * * *"  # Every 15 minutes
+# Cron triggers for automatic indexing
+[[triggers.crons]]
+cron = "*/15 * * * *"  # Every 15 minutes (default, can be overridden via D1 config)
 
 # D1 database for sync state storage
 [[d1_databases]]
