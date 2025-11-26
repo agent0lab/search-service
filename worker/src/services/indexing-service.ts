@@ -15,6 +15,12 @@ export interface IndexingServiceConfig {
   batchSize?: number;
 }
 
+export interface SyncStats {
+  agentsIndexed: number;
+  agentsDeleted: number;
+  batchesProcessed: number;
+}
+
 /**
  * Indexing service that syncs ERC8004 registry agents to semantic search index
  */
@@ -27,8 +33,9 @@ export class IndexingService {
 
   /**
    * Perform indexing sync for all configured chains
+   * Returns statistics about the sync operation
    */
-  async sync(): Promise<void> {
+  async sync(): Promise<SyncStats> {
     // Initialize default config if needed
     await initializeDefaults(this.config.db);
 
@@ -37,10 +44,19 @@ export class IndexingService {
 
     if (chains.length === 0) {
       console.warn('No chains configured for indexing');
-      return;
+      return {
+        agentsIndexed: 0,
+        agentsDeleted: 0,
+        batchesProcessed: 0,
+      };
     }
 
     console.log(`Starting indexing sync for chains: ${chains.join(', ')}`);
+
+    // Track statistics
+    let agentsIndexed = 0;
+    let agentsDeleted = 0;
+    let batchesProcessed = 0;
 
     // Create D1 sync state store
     const stateStore = new D1SemanticSyncStateStore(this.config.db);
@@ -73,6 +89,17 @@ export class IndexingService {
       stateStore,
       logger: (event, extra) => {
         console.log(`[indexing] ${event}`, extra ?? {});
+        
+        // Track statistics from log events
+        if (event === 'semantic-sync:batch-processed' && extra) {
+          batchesProcessed++;
+          if (typeof extra.indexed === 'number') {
+            agentsIndexed += extra.indexed;
+          }
+          if (typeof extra.deleted === 'number') {
+            agentsDeleted += extra.deleted;
+          }
+        }
       },
       targets,
     };
@@ -82,7 +109,17 @@ export class IndexingService {
     // Run the sync
     await runner.run();
 
-    console.log('Indexing sync completed');
+    console.log('Indexing sync completed', {
+      agentsIndexed,
+      agentsDeleted,
+      batchesProcessed,
+    });
+
+    return {
+      agentsIndexed,
+      agentsDeleted,
+      batchesProcessed,
+    };
   }
 }
 
