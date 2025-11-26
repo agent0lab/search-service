@@ -10,7 +10,10 @@ export interface Env {
   PINECONE_INDEX: string;
   PINECONE_NAMESPACE?: string;
   
-  // D1 Database (for future sync state storage)
-  DB?: D1Database;
+  // D1 Database for sync state storage
+  DB: D1Database;
+  
+  // RPC URL for blockchain access
+  RPC_URL: string;
 }
 

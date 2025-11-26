@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { Env } from './types.js';
 import { healthHandler } from './routes/health.js';
 import { searchHandler } from './routes/search.js';
+import { scheduled } from './scheduled.js';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -38,4 +39,7 @@ app.notFound((c) => {
 });
 
 export default app;
+
+// Export scheduled handler for cron triggers
+export { scheduled };
 
