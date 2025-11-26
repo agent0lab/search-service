@@ -1,8 +1,10 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import { SDK } from 'agent0-sdk';
-import { SemanticSyncRunner, type SemanticSyncRunnerOptions } from 'agent0-sdk';
+import { SDK } from 'agent0-ts/index.js';
+import { SemanticSyncRunner, type SemanticSyncRunnerOptions } from 'agent0-ts/semantic-search/index.js';
 import { D1SemanticSyncStateStore } from '../utils/d1-sync-state-store.js';
 import { getChains, initializeDefaults } from '../utils/config-store.js';
+import { VeniceEmbeddingProvider } from '../utils/providers/venice-embedding.js';
+import { PineconeVectorStore } from '../utils/providers/pinecone-vector-store.js';
 
 export interface IndexingServiceConfig {
   db: D1Database;
@@ -61,24 +63,28 @@ export class IndexingService {
     // Create D1 sync state store
     const stateStore = new D1SemanticSyncStateStore(this.config.db);
 
+    // Create our own provider instances to avoid AJV issues with SDK's Pinecone initialization
+    const embeddingProvider = new VeniceEmbeddingProvider({
+      apiKey: this.config.veniceApiKey,
+      model: this.config.veniceModel || 'text-embedding-bge-m3',
+    });
+
+    const vectorStoreProvider = new PineconeVectorStore({
+      apiKey: this.config.pineconeApiKey,
+      index: this.config.pineconeIndex,
+      namespace: this.config.pineconeNamespace,
+    });
+
     // Initialize SDK with first chain (for subgraph client initialization)
     // The SemanticSyncRunner will handle multiple chains via targets
+    // Pass provider instances directly to avoid SDK creating new ones
     const primaryChainId = chains[0];
     const sdk = new SDK({
       chainId: primaryChainId,
       rpcUrl: this.config.rpcUrl,
       semanticSearch: {
-        embedding: {
-          provider: 'venice',
-          apiKey: this.config.veniceApiKey,
-          model: this.config.veniceModel || 'text-embedding-bge-m3',
-        },
-        vectorStore: {
-          provider: 'pinecone',
-          apiKey: this.config.pineconeApiKey,
-          index: this.config.pineconeIndex,
-          namespace: this.config.pineconeNamespace,
-        },
+        embedding: embeddingProvider,
+        vectorStore: vectorStoreProvider,
       },
     });
 
@@ -87,7 +93,7 @@ export class IndexingService {
     const options: SemanticSyncRunnerOptions = {
       batchSize: this.config.batchSize || 50,
       stateStore,
-      logger: (event, extra) => {
+      logger: (event: string, extra?: Record<string, unknown>) => {
         console.log(`[indexing] ${event}`, extra ?? {});
         
         // Track statistics from log events
