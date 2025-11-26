@@ -12,6 +12,7 @@ command = ""
 # - VENICE_API_KEY: Venice AI API key for embeddings
 # - PINECONE_API_KEY: Pinecone API key
 # - PINECONE_INDEX: Pinecone index name
+# - RPC_URL: Ethereum RPC endpoint URL (for blockchain access)
 
 # Optional secrets
 # - PINECONE_NAMESPACE: Pinecone namespace (if using namespaces)
