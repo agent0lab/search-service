@@ -20,7 +20,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@pinecone-database/pinecone": "^6.1.2",
+    "@pinecone-database/pinecone": "^6.1.3",
     "agent0-sdk": "^0.31.0",
     "hono": "^4.0.0"
   },
@@ -34,7 +34,7 @@
     "wrangler": "^3.19.0"
   },
   "overrides": {
-    "@pinecone-database/pinecone": "^6.1.2"
+    "@pinecone-database/pinecone": "^6.1.3"
   }
 }
 
