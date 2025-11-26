@@ -21,9 +21,8 @@ command = ""
 # Non-secret environment variables can be added here
 
 # Cron triggers for automatic indexing
-# Note: Configure via Cloudflare Dashboard or use wrangler tail --scheduled
-# [[triggers.crons]]
-# cron = "*/15 * * * *"
+[[triggers.crons]]
+cron = "*/15 * * * *"  # Every 15 minutes (default, can be overridden via D1 config)
 
 # D1 database for sync state storage
 [[d1_databases]]
