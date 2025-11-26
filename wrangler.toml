@@ -23,9 +23,10 @@ command = ""
 # [[triggers.crons]]
 # cron = "*/15 * * * *"  # Every 15 minutes
 
-# D1 database (commented out for now - will be enabled for sync state storage)
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "semantic-sync-state"
-# database_id = "your-database-id-here"
+# D1 database for sync state storage
+[[d1_databases]]
+binding = "DB"
+database_name = "semantic-sync-state"
+database_id = "your-database-id-here"
+# Note: Run 'wrangler d1 migrations apply semantic-sync-state' to apply migrations
 
