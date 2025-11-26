@@ -3,9 +3,14 @@ import type {
   SemanticSyncState,
   SemanticSyncStateStore,
   ChainSyncState,
-  LegacySemanticSyncState,
 } from './sync-state.js';
 import { normalizeSemanticSyncState } from './sync-state.js';
+
+// LegacySemanticSyncState is not exported, so we define it locally
+interface LegacySemanticSyncState {
+  lastUpdatedAt?: string;
+  agentHashes?: Record<string, string>;
+}
 
 /**
  * D1 database-backed semantic sync state store.
