@@ -21,13 +21,15 @@ command = ""
 # Non-secret environment variables can be added here
 
 # Cron triggers for automatic indexing
-[[triggers.crons]]
-cron = "*/15 * * * *"  # Every 15 minutes (default, can be overridden via D1 config)
+# Note: Configure via Cloudflare Dashboard or use wrangler tail --scheduled
+# [[triggers.crons]]
+# cron = "*/15 * * * *"
 
 # D1 database for sync state storage
 [[d1_databases]]
 binding = "DB"
 database_name = "semantic-sync-state"
-database_id = "your-database-id-here"
-# Note: Run 'wrangler d1 migrations apply semantic-sync-state' to apply migrations
+database_id = "164eaaf0-6527-4e1b-b859-5805aae1b6c9"
+# Use remote database: npm run dev:remote (uses --remote flag)
+# Note: Run 'wrangler d1 migrations apply semantic-sync-state --remote' to apply migrations to remote
 
