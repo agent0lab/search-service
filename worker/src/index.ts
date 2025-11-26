@@ -33,13 +33,14 @@ app.get('/health', healthHandler);
 // Search route
 app.post('/api/search', searchHandler);
 
+
 // 404 handler
 app.notFound((c) => {
   return c.json({ error: 'Not found' }, 404);
 });
 
+// Export default for Hono (fetch handler)
 export default app;
 
 // Export scheduled handler for cron triggers
 export { scheduled };
-
