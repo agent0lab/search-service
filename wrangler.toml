@@ -21,8 +21,10 @@ command = ""
 # Non-secret environment variables can be added here
 
 # Cron triggers for automatic indexing
-[[triggers.crons]]
-cron = "*/15 * * * *"  # Every 15 minutes (default, can be overridden via D1 config)
+# Note: Configure via Cloudflare Dashboard (Workers > agent0-semantic-search > Triggers > Cron Triggers)
+# Recommended: */15 * * * * (every 15 minutes)
+# [[triggers.crons]]
+# cron = "*/15 * * * *"
 
 # D1 database for sync state storage
 [[d1_databases]]
