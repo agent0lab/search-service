@@ -3,7 +3,7 @@ import type { D1Database } from '@cloudflare/workers-types';
 /**
  * Default configuration values
  */
-const DEFAULT_CHAINS = [11155111, 84532]; // Sepolia, Base Sepolia
+const DEFAULT_CHAINS = [11155111, 84532, 80002]; // Sepolia, Base Sepolia, Polygon Amoy
 const DEFAULT_CRON_INTERVAL = '*/15 * * * *'; // Every 15 minutes
 
 /**

@@ -198,14 +198,15 @@ The service includes an automated indexing system that syncs the ERC-8004 agent 
 
 - **Cron Schedule**: Runs every 15 minutes by default (configurable via D1)
 - **Queue-Based**: Uses Cloudflare Queues to handle indexing operations asynchronously
-- **Multi-Chain**: Supports indexing multiple chains (default: Sepolia and Base Sepolia)
+- **Multi-Chain**: Supports indexing multiple chains (default: Sepolia, Base Sepolia, and Polygon Amoy)
 - **State Management**: Tracks sync state in D1 database to enable incremental updates
 - **Concurrent Sync Protection**: Prevents multiple syncs for the same chain using lock mechanism
 
 ### Configuration
 
 Indexing configuration is stored in the D1 database (`indexing_config` table):
-- `chains`: JSON array of chain IDs to index (e.g., `["11155111", "84532"]`)
+- `chains`: JSON array of chain IDs to index (e.g., `["11155111", "84532", "80002"]`)
+  - Default: Ethereum Sepolia (11155111), Base Sepolia (84532), Polygon Amoy (80002)
 - `cron_interval`: Cron expression for sync frequency (default: `"*/15 * * * *"`)
 
 ### Sync Logs
