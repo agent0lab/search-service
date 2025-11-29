@@ -4,6 +4,9 @@ import type { ScheduledController, MessageBatch } from '@cloudflare/workers-type
 import type { ChainSyncMessage } from './types.js';
 import { healthHandler } from './routes/health.js';
 import { searchHandler } from './routes/search.js';
+import { validateSearchRequest } from './middleware/validation.js';
+import { rateLimitMiddleware } from './middleware/rate-limit.js';
+import { createErrorResponse, ErrorCode } from './utils/errors.js';
 // Import the scheduled handler implementation
 import { scheduled as scheduledHandlerImpl } from './scheduled.js';
 // Import the queue handler implementation
@@ -11,32 +14,43 @@ import { queue as queueHandlerImpl } from './queue.js';
 
 const app = new Hono<{ Bindings: Env }>();
 
-// Error handling middleware
-app.onError((err, c) => {
-  console.error('Error:', err);
-  const status = (err as any).status || 500;
-  return c.json(
-    {
-      error: err.message || 'Internal server error',
-      status,
-    },
-    status
-  );
+// Security headers middleware
+app.use('*', async (c, next) => {
+  await next();
+  c.header('X-Content-Type-Options', 'nosniff');
+  c.header('X-Frame-Options', 'DENY');
+  c.header('X-XSS-Protection', '1; mode=block');
 });
 
 // CORS middleware
 app.use('*', async (c, next) => {
+  // Handle preflight requests
+  if (c.req.method === 'OPTIONS') {
+    return c.json({}, 200, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    });
+  }
   await next();
   c.header('Access-Control-Allow-Origin', '*');
   c.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   c.header('Access-Control-Allow-Headers', 'Content-Type');
 });
 
+// Error handling middleware
+app.onError((err, c) => {
+  console.error('Error:', err);
+  const status = (err as any).status || 500;
+  const errorResponse = createErrorResponse(err, status);
+  return c.json(errorResponse, status);
+});
+
 // Health check route
 app.get('/health', healthHandler);
 
-// Search route
-app.post('/api/search', searchHandler);
+// Search route with validation and rate limiting
+app.post('/api/search', rateLimitMiddleware, validateSearchRequest, searchHandler);
 
 // 404 handler
 app.notFound((c) => {
