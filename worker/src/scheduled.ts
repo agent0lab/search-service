@@ -1,69 +1,91 @@
-import type { ScheduledEvent } from '@cloudflare/workers-types';
-import type { Env } from './types.js';
-import { IndexingService } from './services/indexing-service.js';
+import type { ScheduledController } from '@cloudflare/workers-types';
+import type { Env, ChainSyncMessage } from './types.js';
 import { SyncLogger } from './utils/sync-logger.js';
-import { getChains } from './utils/config-store.js';
+import { getChains, initializeDefaults } from './utils/config-store.js';
 
 /**
  * Scheduled event handler for cron-triggered indexing
- * This handler is automatically protected - only Cloudflare's cron system can trigger it
+ * This handler queues chain sync messages - the queue consumer does all the work
  */
-export async function scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-  console.log('Scheduled indexing triggered:', event.cron);
+export async function scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+  const startTime = Date.now();
+  console.log('[CRON] Scheduled indexing triggered:', controller.cron, new Date().toISOString());
 
   const logger = new SyncLogger(env.DB);
   let logId: number | null = null;
 
   try {
+    console.log('[CRON] Starting queue-based sync process...');
+    
     // Validate required environment variables
     if (!env.DB) {
       throw new Error('D1 database (DB) is required');
     }
-    if (!env.RPC_URL) {
-      throw new Error('RPC_URL is required');
-    }
-    if (!env.VENICE_API_KEY) {
-      throw new Error('VENICE_API_KEY is required');
-    }
-    if (!env.PINECONE_API_KEY) {
-      throw new Error('PINECONE_API_KEY is required');
-    }
-    if (!env.PINECONE_INDEX) {
-      throw new Error('PINECONE_INDEX is required');
+    if (!env.INDEXING_QUEUE) {
+      throw new Error('INDEXING_QUEUE is required for queue-based indexing');
     }
 
-    // Get chains for logging
+    // Initialize default config if needed
+    await initializeDefaults(env.DB);
+
+    // Get chains to sync
     const chains = await getChains(env.DB);
+    console.log('[CRON] Configured chains:', chains);
+    
+    if (chains.length === 0) {
+      console.warn('[CRON] No chains configured for indexing');
+      return;
+    }
     
     // Start logging
     logId = await logger.startLog(chains);
+    console.log('[CRON] Started sync log entry:', logId);
 
-    // Create indexing service
-    const indexingService = new IndexingService({
-      db: env.DB,
-      rpcUrl: env.RPC_URL,
-      veniceApiKey: env.VENICE_API_KEY,
-      pineconeApiKey: env.PINECONE_API_KEY,
-      pineconeIndex: env.PINECONE_INDEX,
-      pineconeNamespace: env.PINECONE_NAMESPACE,
-      batchSize: 50,
+    // Queue a sync message for each chain
+    // The queue consumer will handle all the work: subgraph paging, embeddings, upserting
+    const queuePromises = chains.map(async (chainId) => {
+      const message: ChainSyncMessage = {
+        type: 'chain-sync',
+        chainId: String(chainId), // Convert to string for queue message
+        batchSize: 50, // Can be configured per chain if needed
+      };
+      
+      await env.INDEXING_QUEUE.send(message);
+      console.log(`[CRON] Queued sync for chain ${chainId}`);
     });
 
-    // Perform sync
-    const stats = await indexingService.sync();
+    await Promise.all(queuePromises);
+    
+    const duration = Date.now() - startTime;
 
-    // Log successful completion
+    // Log queuing completion (actual sync happens in queue consumer)
     if (logId !== null) {
-      await logger.completeLog(logId, 'success', stats);
+      await logger.completeLog(logId, 'success', {
+        agentsIndexed: 0, // Will be updated by queue consumer
+        agentsDeleted: 0,
+        batchesProcessed: 0,
+      });
     }
 
-    console.log('Scheduled indexing completed successfully', stats);
+    console.log('[CRON] Queued sync messages for all chains', {
+      chains: chains.length,
+      durationMs: duration,
+      timestamp: new Date().toISOString(),
+    });
   } catch (error) {
-    console.error('Error in scheduled indexing:', error);
+    const duration = Date.now() - startTime;
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    console.error('[CRON] Error in scheduled indexing:', {
+      error: errorMessage,
+      stack: errorStack,
+      durationMs: duration,
+      timestamp: new Date().toISOString(),
+    });
     
     // Log error
     if (logId !== null) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
       await logger.completeLog(logId, 'error', {
         agentsIndexed: 0,
         agentsDeleted: 0,

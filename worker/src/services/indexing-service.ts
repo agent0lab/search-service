@@ -1,10 +1,13 @@
-import type { D1Database } from '@cloudflare/workers-types';
+import type { D1Database, Queue } from '@cloudflare/workers-types';
 import { SDK } from 'agent0-ts/index.js';
 import { SemanticSyncRunner, type SemanticSyncRunnerOptions } from 'agent0-ts/semantic-search/index.js';
 import { D1SemanticSyncStateStore } from '../utils/d1-sync-state-store.js';
 import { getChains, initializeDefaults } from '../utils/config-store.js';
 import { VeniceEmbeddingProvider } from '../utils/providers/venice-embedding.js';
 import { PineconeVectorStore } from '../utils/providers/pinecone-vector-store.js';
+import { QueuedVectorStore } from '../utils/providers/queued-vector-store.js';
+import type { IndexingQueueMessage } from '../types.js';
+import type { SemanticSyncState } from '../utils/sync-state.js';
 
 export interface IndexingServiceConfig {
   db: D1Database;
@@ -15,6 +18,7 @@ export interface IndexingServiceConfig {
   pineconeNamespace?: string;
   veniceModel?: string;
   batchSize?: number;
+  queue?: Queue<IndexingQueueMessage>;
 }
 
 export interface SyncStats {
@@ -69,11 +73,69 @@ export class IndexingService {
       model: this.config.veniceModel || 'text-embedding-bge-m3',
     });
 
-    const vectorStoreProvider = new PineconeVectorStore({
+    // Create underlying Pinecone store
+    const pineconeStore = new PineconeVectorStore({
       apiKey: this.config.pineconeApiKey,
       index: this.config.pineconeIndex,
       namespace: this.config.pineconeNamespace,
     });
+
+    // Wrap with QueuedVectorStore if queue is provided, otherwise use Pinecone directly
+    let vectorStoreProvider: PineconeVectorStore | QueuedVectorStore;
+    
+    if (this.config.queue) {
+      // Create queue-aware wrapper
+      vectorStoreProvider = new QueuedVectorStore({
+        queue: this.config.queue,
+        pineconeStore,
+        getStateUpdate: async (chainId: string) => {
+          // Load current state and return the state for the specified chain
+          const currentState = await stateStore.load();
+          if (!currentState || !('chains' in currentState)) {
+            return {
+              chainId,
+              lastUpdatedAt: '0',
+              agentHashes: {},
+            };
+          }
+          
+          const syncState = currentState as SemanticSyncState;
+          const chainState = syncState.chains[chainId] || {
+            lastUpdatedAt: '0',
+            agentHashes: {},
+          };
+          
+          return {
+            chainId,
+            lastUpdatedAt: chainState.lastUpdatedAt,
+            agentHashes: { ...chainState.agentHashes },
+          };
+        },
+      });
+      console.log('[indexing] Using queued vector store (operations will be queued)');
+    } else {
+      vectorStoreProvider = pineconeStore;
+      console.log('[indexing] Using direct Pinecone vector store (no queue)');
+    }
+
+    // Initialize Pinecone connection before starting sync
+    try {
+      console.log(`[indexing] Initializing Pinecone connection to index: ${this.config.pineconeIndex}`);
+      const initStart = Date.now();
+      await vectorStoreProvider.initialize();
+      const initDuration = Date.now() - initStart;
+      console.log(`[indexing] Pinecone connection initialized successfully (${initDuration}ms)`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      console.error('[indexing] Failed to initialize Pinecone connection:', {
+        error: errorMessage,
+        stack: errorStack,
+        index: this.config.pineconeIndex,
+        hasApiKey: !!this.config.pineconeApiKey,
+      });
+      throw new Error(`Pinecone initialization failed: ${errorMessage}. Please check your PINECONE_API_KEY and PINECONE_INDEX configuration.`);
+    }
 
     // Initialize SDK with first chain (for subgraph client initialization)
     // The SemanticSyncRunner will handle multiple chains via targets
