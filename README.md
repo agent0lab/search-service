@@ -5,25 +5,31 @@ Standalone semantic search service for ERC-8004 agents using Cloudflare Workers,
 ## Features
 
 - **Semantic Search**: Natural language queries to find relevant agents
+- **Automatic Indexing**: Scheduled cron jobs to keep index in sync with ERC-8004 registry
 - **Vector Embeddings**: Uses Venice AI for high-quality embeddings
 - **Vector Storage**: Pinecone for scalable vector search
+- **Queue-Based Processing**: Cloudflare Queues for reliable indexing operations
+- **State Management**: D1 database for sync state and configuration
 - **Serverless**: Deployed on Cloudflare Workers for global edge deployment
 - **Open Source**: MIT licensed, self-hostable
 
 ## Architecture
 
 - **Search API**: Stateless Cloudflare Worker handling search queries
-- **Indexing**: Scheduled cron jobs (coming soon) to keep index in sync
-- **State Storage**: D1 database for sync state (coming soon)
+- **Indexing Service**: Automated sync via cron jobs (every 15 minutes by default)
+- **Queue Consumer**: Processes indexing operations asynchronously to avoid rate limits
+- **State Storage**: D1 database for sync state and indexing configuration
+- **Multi-Chain Support**: Configurable chain list for indexing multiple networks
 
 ## Setup
 
 ### Prerequisites
 
 - Node.js 18+ and npm
-- Cloudflare account
+- Cloudflare account (with Workers, D1, and Queues enabled)
 - Venice AI API key
 - Pinecone account and API key
+- Ethereum RPC endpoint (for indexing service)
 
 ### Installation
 
@@ -43,13 +49,27 @@ npm install
    VENICE_API_KEY=your_venice_key
    PINECONE_API_KEY=your_pinecone_key
    PINECONE_INDEX=your_index_name
+   RPC_URL=https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY
    ```
 
-3. For production, set secrets via Wrangler:
+3. Set up D1 database (for sync state):
+   ```bash
+   # Create D1 database (if not already created)
+   wrangler d1 create semantic-sync-state
+   
+   # Apply migrations to local database
+   wrangler d1 migrations apply semantic-sync-state --local
+   
+   # Apply migrations to remote database
+   wrangler d1 migrations apply semantic-sync-state --remote
+   ```
+
+4. For production, set secrets via Wrangler:
    ```bash
    wrangler secret put VENICE_API_KEY
    wrangler secret put PINECONE_API_KEY
    wrangler secret put PINECONE_INDEX
+   wrangler secret put RPC_URL
    ```
 
 ## Development
@@ -166,10 +186,53 @@ Check service health and connectivity.
 - `VENICE_API_KEY`: Venice AI API key for embeddings
 - `PINECONE_API_KEY`: Pinecone API key
 - `PINECONE_INDEX`: Pinecone index name
+- `RPC_URL`: Ethereum RPC endpoint URL (for blockchain access during indexing)
 
 ### Optional
 
 - `PINECONE_NAMESPACE`: Pinecone namespace (if using namespaces)
+
+## Indexing Service
+
+The service includes an automated indexing system that syncs the ERC-8004 agent registry:
+
+- **Cron Schedule**: Runs every 15 minutes by default (configurable via D1)
+- **Queue-Based**: Uses Cloudflare Queues to handle indexing operations asynchronously
+- **Multi-Chain**: Supports indexing multiple chains (default: Sepolia and Base Sepolia)
+- **State Management**: Tracks sync state in D1 database to enable incremental updates
+- **Concurrent Sync Protection**: Prevents multiple syncs for the same chain using lock mechanism
+
+### Configuration
+
+Indexing configuration is stored in the D1 database (`indexing_config` table):
+- `chains`: JSON array of chain IDs to index (e.g., `["11155111", "84532"]`)
+- `cron_interval`: Cron expression for sync frequency (default: `"*/15 * * * *"`)
+
+### Sync Logs
+
+All cron job runs are logged to the `sync_logs` table in D1, including:
+- Start/end times
+- Chains processed
+- Agents indexed/deleted
+- Success/error status
+
+### Local Development
+
+For local testing with remote D1 database:
+```bash
+# Use --remote flag to connect to production D1 database
+npx wrangler dev --remote
+```
+
+For initial full sync (bypasses Workers timeout limits):
+```bash
+npm run sync:direct
+```
+
+For testing cron jobs locally:
+```bash
+npm run dev:test-cron
+```
 
 ## Testing
 
@@ -201,19 +264,38 @@ The tests verify:
 
 ```
 search-service/
-├── worker/             # Cloudflare Workers code
+├── worker/                    # Cloudflare Workers code
 │   └── src/
-│       ├── utils/      # Semantic search core code
-│       │   ├── providers/  # Embedding and vector store providers
-│       │   ├── manager.ts  # Search manager
-│       │   ├── config.ts   # Provider configuration
-│       │   └── types.ts    # Type definitions
-│       ├── routes/     # API route handlers
-│       │   ├── health.ts
-│       │   └── search.ts
-│       └── index.ts    # Worker entry point
-├── tests/              # Test suite
-├── wrangler.toml       # Cloudflare Workers configuration
+│       ├── routes/            # API route handlers
+│       │   ├── health.ts      # Health check endpoint
+│       │   └── search.ts      # Search endpoint
+│       ├── services/           # Service implementations
+│       │   └── indexing-service.ts  # Indexing service (legacy, not used in queue-based flow)
+│       ├── utils/              # Utilities and providers
+│       │   ├── providers/      # Embedding and vector store providers
+│       │   │   ├── venice-embedding.ts
+│       │   │   └── pinecone-vector-store.ts
+│       │   ├── d1-sync-state-store.ts  # D1-based sync state storage
+│       │   ├── config-store.ts         # D1-based configuration storage
+│       │   ├── sync-logger.ts          # Sync logging utility
+│       │   ├── sync-lock.ts            # Concurrent sync lock manager
+│       │   ├── manager.ts      # Search manager
+│       │   ├── config.ts       # Provider configuration
+│       │   └── types.ts        # Type definitions
+│       ├── scheduled.ts        # Cron job handler
+│       ├── queue.ts            # Queue consumer handler
+│       ├── types.ts            # Environment and type definitions
+│       └── index.ts            # Worker entry point
+├── migrations/                 # D1 database migrations
+│   ├── 0001_initial.sql        # Initial schema (sync_state, indexing_config)
+│   ├── 0002_add_sync_logs.sql # Sync logs table
+│   └── 0003_add_sync_locks.sql # Sync locks table
+├── scripts/                   # Utility scripts
+│   ├── sync-local-direct.ts   # Direct local sync script
+│   └── test-local-queue.ts    # Local queue testing script
+├── tests/                      # Test suite
+├── wrangler.toml               # Cloudflare Workers configuration
+├── .env.example                # Environment variables template
 └── package.json
 ```
 
