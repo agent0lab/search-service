@@ -36,3 +36,18 @@ export interface ChainSyncMessage {
   subgraphUrl?: string; // Optional, for custom subgraph URLs
 }
 
+/**
+ * Validation constants for production readiness
+ */
+export const MAX_QUERY_LENGTH = 1000;
+export const MAX_TOP_K = 100;
+export const MAX_REQUEST_SIZE = 10240; // 10KB
+
+/**
+ * Rate limiting configuration
+ */
+export interface RateLimitConfig {
+  requestsPerMinute: number;
+  windowSizeMs: number;
+}
+
