@@ -18,6 +18,6 @@ CREATE TABLE IF NOT EXISTS indexing_config (
 
 -- Insert default configuration values
 INSERT OR IGNORE INTO indexing_config (key, value) VALUES 
-  ('chains', '["11155111", "84532"]'),
+  ('chains', '["11155111", "84532", "80002"]'),
   ('cron_interval', '"*/15 * * * *"');
 
