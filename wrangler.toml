@@ -1,6 +1,6 @@
 name = "agent0-semantic-search"
 main = "worker/src/index.ts"
-compatibility_date = "2024-11-25"
+compatibility_date = "2025-07-18"
 compatibility_flags = ["nodejs_compat"]
 
 # Include utils directory in the build
@@ -21,10 +21,9 @@ command = ""
 # Non-secret environment variables can be added here
 
 # Cron triggers for automatic indexing
-# Note: Configure via Cloudflare Dashboard (Workers > agent0-semantic-search > Triggers > Cron Triggers)
-# Recommended: */15 * * * * (every 15 minutes)
-# [[triggers.crons]]
-# cron = "*/15 * * * *"
+# Schedule: every 15 minutes
+[triggers]
+crons = ["*/15 * * * *"]
 
 # D1 database for sync state storage
 [[d1_databases]]
@@ -33,4 +32,14 @@ database_name = "semantic-sync-state"
 database_id = "164eaaf0-6527-4e1b-b859-5805aae1b6c9"
 # Use remote database: npm run dev:remote (uses --remote flag)
 # Note: Run 'wrangler d1 migrations apply semantic-sync-state --remote' to apply migrations to remote
+
+# Cloudflare Queue for indexing operations
+[[queues.producers]]
+queue = "indexing-queue"
+binding = "INDEXING_QUEUE"
+
+[[queues.consumers]]
+queue = "indexing-queue"
+max_batch_size = 10
+max_batch_timeout = 30
 
