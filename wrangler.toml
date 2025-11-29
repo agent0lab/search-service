@@ -1,6 +1,6 @@
 name = "agent0-semantic-search"
 main = "worker/src/index.ts"
-compatibility_date = "2024-11-25"
+compatibility_date = "2025-07-18"
 compatibility_flags = ["nodejs_compat"]
 
 # Include utils directory in the build
@@ -12,6 +12,7 @@ command = ""
 # - VENICE_API_KEY: Venice AI API key for embeddings
 # - PINECONE_API_KEY: Pinecone API key
 # - PINECONE_INDEX: Pinecone index name
+# - RPC_URL: Ethereum RPC endpoint URL (for blockchain access)
 
 # Optional secrets
 # - PINECONE_NAMESPACE: Pinecone namespace (if using namespaces)
@@ -19,13 +20,26 @@ command = ""
 [vars]
 # Non-secret environment variables can be added here
 
-# Cron triggers (commented out for now - will be enabled in future commits)
-# [[triggers.crons]]
-# cron = "*/15 * * * *"  # Every 15 minutes
+# Cron triggers for automatic indexing
+# Schedule: every 15 minutes
+[triggers]
+crons = ["*/15 * * * *"]
 
-# D1 database (commented out for now - will be enabled for sync state storage)
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "semantic-sync-state"
-# database_id = "your-database-id-here"
+# D1 database for sync state storage
+[[d1_databases]]
+binding = "DB"
+database_name = "semantic-sync-state"
+database_id = "164eaaf0-6527-4e1b-b859-5805aae1b6c9"
+# Use remote database: npm run dev:remote (uses --remote flag)
+# Note: Run 'wrangler d1 migrations apply semantic-sync-state --remote' to apply migrations to remote
+
+# Cloudflare Queue for indexing operations
+[[queues.producers]]
+queue = "indexing-queue"
+binding = "INDEXING_QUEUE"
+
+[[queues.consumers]]
+queue = "indexing-queue"
+max_batch_size = 10
+max_batch_timeout = 30
 

@@ -10,7 +10,29 @@ export interface Env {
   PINECONE_INDEX: string;
   PINECONE_NAMESPACE?: string;
   
-  // D1 Database (for future sync state storage)
-  DB?: D1Database;
+  // D1 Database for sync state storage
+  DB: D1Database;
+  
+  // RPC URL for blockchain access
+  RPC_URL: string;
+  
+  // Cloudflare Queue for indexing operations
+  INDEXING_QUEUE: Queue<IndexingQueueMessage>;
+}
+
+/**
+ * Queue message types for indexing operations
+ */
+export type IndexingQueueMessage = ChainSyncMessage;
+
+/**
+ * Message for syncing a single chain
+ * The queue consumer will handle all the work: subgraph paging, embedding generation, upserting
+ */
+export interface ChainSyncMessage {
+  type: 'chain-sync';
+  chainId: string;
+  batchSize?: number; // Optional, defaults to 50
+  subgraphUrl?: string; // Optional, for custom subgraph URLs
 }
 

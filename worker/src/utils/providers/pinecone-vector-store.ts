@@ -118,18 +118,16 @@ export class PineconeVectorStore implements VectorStoreProvider {
       result.capabilities = { $in: filters.capabilities };
     }
 
-    if (filters.defaultInputMode) {
-      // Map to defaultInputModes field in Pinecone metadata
-      result.defaultInputModes = { $in: [filters.defaultInputMode] };
+    if (filters.inputMode) {
+      result.defaultInputModes = { $in: [filters.inputMode] };
     }
 
-    if (filters.defaultOutputMode) {
-      // Map to defaultOutputModes field in Pinecone metadata
-      result.defaultOutputModes = { $in: [filters.defaultOutputMode] };
+    if (filters.outputMode) {
+      result.defaultOutputModes = { $in: [filters.outputMode] };
     }
 
     for (const [key, value] of Object.entries(filters)) {
-      if (key === 'capabilities' || key === 'defaultInputMode' || key === 'defaultOutputMode' || key === 'minScore') {
+      if (key === 'capabilities' || key === 'inputMode' || key === 'outputMode' || key === 'minScore') {
         continue;
       }
       result[key] = value;

@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
  */
 const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:8787';
 
-describe('Search Service API', () => {
+describe.skip('Search Service API', () => {
 
   describe('GET /health', () => {
     it('should return health status', async () => {

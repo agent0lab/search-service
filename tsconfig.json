@@ -16,7 +16,8 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "~/*": ["./worker/src/*"]
+      "~/*": ["./worker/src/*"],
+      "agent0-ts/*": ["../agent0-ts/src/*"]
     }
   },
   "include": ["worker/**/*", "tests/**/*"],
