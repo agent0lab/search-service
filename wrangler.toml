@@ -1,0 +1,31 @@
+name = "agent0-semantic-search"
+main = "worker/src/index.ts"
+compatibility_date = "2024-11-25"
+compatibility_flags = ["nodejs_compat"]
+
+# Include utils directory in the build
+[build]
+command = ""
+
+# Environment variables
+# Required secrets (set via: wrangler secret put <NAME>)
+# - VENICE_API_KEY: Venice AI API key for embeddings
+# - PINECONE_API_KEY: Pinecone API key
+# - PINECONE_INDEX: Pinecone index name
+
+# Optional secrets
+# - PINECONE_NAMESPACE: Pinecone namespace (if using namespaces)
+
+[vars]
+# Non-secret environment variables can be added here
+
+# Cron triggers (commented out for now - will be enabled in future commits)
+# [[triggers.crons]]
+# cron = "*/15 * * * *"  # Every 15 minutes
+
+# D1 database (commented out for now - will be enabled for sync state storage)
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "semantic-sync-state"
+# database_id = "your-database-id-here"
+
