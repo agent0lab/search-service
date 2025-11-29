@@ -88,16 +88,14 @@ export async function rateLimitMiddleware(c: Context<{ Bindings: Env }>, next: N
         (WINDOW_SIZE_MS - (now.getTime() - (existing ? new Date(existing.window_start).getTime() : now.getTime()))) / 1000
       );
 
+      c.header('Retry-After', retryAfter.toString());
       return c.json(
         createErrorResponse(
           new Error('Rate limit exceeded. Please try again later.'),
           429,
           ErrorCode.RATE_LIMIT_EXCEEDED
         ),
-        429,
-        {
-          'Retry-After': retryAfter.toString(),
-        }
+        429
       );
     }
 
