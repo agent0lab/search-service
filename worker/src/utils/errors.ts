@@ -50,7 +50,17 @@ export function sanitizeErrorMessage(error: unknown): string {
     }
 
     // For known validation errors, return the message as-is
-    if (message.includes('Missing or invalid') || message.includes('Invalid')) {
+    // This includes: Missing/invalid, too large, out of range, etc.
+    if (
+      message.includes('Missing or invalid') ||
+      message.includes('Invalid') ||
+      message.includes('too large') ||
+      message.includes('too long') ||
+      message.includes('cannot exceed') ||
+      message.includes('must be') ||
+      message.includes('out of range') ||
+      message.includes('cannot be empty')
+    ) {
       return message;
     }
 

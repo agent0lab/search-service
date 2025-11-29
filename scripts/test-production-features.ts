@@ -309,14 +309,39 @@ async function runTests() {
 
   // Test 22: Request body too large
   await test('Validation: request body too large', async () => {
-    const largeBody = { query: 'a'.repeat(10241) }; // > 10KB
-    const response = await makeRequest('/api/search', {
-      body: largeBody,
-      expectedStatus: 400,
-    });
-    const data = await response.json();
-    if (!data.error || !data.error.includes('too large')) {
-      throw new Error('Should reject large request body');
+    // Create a body that when stringified will be > 10KB
+    // JSON adds ~15 chars for structure, so we need query to be ~10225+ chars
+    const largeBody = { query: 'a'.repeat(10250) };
+    const bodyString = JSON.stringify(largeBody);
+    const bodySize = new TextEncoder().encode(bodyString).length;
+    
+    if (bodySize <= 10240) {
+      console.log(`   ⚠️  Body size is ${bodySize} bytes, need > 10240. Adjusting...`);
+      // Increase if needed
+      const adjustedBody = { query: 'a'.repeat(10300) };
+      const response = await makeRequest('/api/search', {
+        body: adjustedBody,
+        expectedStatus: 400,
+      });
+      const data = await response.json();
+      if (response.status !== 400 || !data.error) {
+        throw new Error(`Expected 400 with error, got ${response.status}. Response: ${JSON.stringify(data)}`);
+      }
+      if (!data.error.toLowerCase().includes('too large') && !data.error.toLowerCase().includes('large')) {
+        throw new Error(`Error message doesn't mention size: ${data.error}`);
+      }
+    } else {
+      const response = await makeRequest('/api/search', {
+        body: largeBody,
+        expectedStatus: 400,
+      });
+      const data = await response.json();
+      if (response.status !== 400 || !data.error) {
+        throw new Error(`Expected 400 with error, got ${response.status}. Response: ${JSON.stringify(data)}`);
+      }
+      if (!data.error.toLowerCase().includes('too large') && !data.error.toLowerCase().includes('large')) {
+        throw new Error(`Error message doesn't mention size: ${data.error}`);
+      }
     }
   });
 
