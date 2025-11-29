@@ -28,7 +28,7 @@ export async function searchHandler(c: Context<{ Bindings: Env }>): Promise<Resp
   const requestLogger = new RequestLogger(c.env.DB);
 
   // Get validated body from middleware
-  const body = c.get('validatedBody') as SemanticQueryRequest | undefined;
+  const body = (c as any).get('validatedBody') as SemanticQueryRequest | undefined;
   if (!body) {
     // This shouldn't happen if validation middleware is properly configured
     const errorResponse = createErrorResponse(

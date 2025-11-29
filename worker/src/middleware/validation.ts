@@ -8,19 +8,6 @@ import { createErrorResponse, ErrorCode } from '../utils/errors.js';
  */
 export async function validateSearchRequest(c: Context<{ Bindings: Env }>, next: Next) {
   try {
-    // Check request body size
-    const contentLength = c.req.header('content-length');
-    if (contentLength && parseInt(contentLength, 10) > MAX_REQUEST_SIZE) {
-      return c.json(
-        createErrorResponse(
-          new Error(`Request body too large. Maximum size is ${MAX_REQUEST_SIZE} bytes`),
-          400,
-          ErrorCode.VALIDATION_ERROR
-        ),
-        400
-      );
-    }
-
     // Parse and validate request body
     let body: unknown;
     try {
@@ -29,6 +16,19 @@ export async function validateSearchRequest(c: Context<{ Bindings: Env }>, next:
       return c.json(
         createErrorResponse(
           new Error('Invalid JSON in request body'),
+          400,
+          ErrorCode.VALIDATION_ERROR
+        ),
+        400
+      );
+    }
+
+    // Check request body size (after parsing, check stringified size)
+    const bodyString = JSON.stringify(body);
+    if (new TextEncoder().encode(bodyString).length > MAX_REQUEST_SIZE) {
+      return c.json(
+        createErrorResponse(
+          new Error(`Request body too large. Maximum size is ${MAX_REQUEST_SIZE} bytes`),
           400,
           ErrorCode.VALIDATION_ERROR
         ),
@@ -209,7 +209,7 @@ export async function validateSearchRequest(c: Context<{ Bindings: Env }>, next:
     }
 
     // Store validated body in context for use in handler
-    c.set('validatedBody', request);
+    (c as any).set('validatedBody', request);
 
     await next();
   } catch (error) {
