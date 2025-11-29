@@ -15,3 +15,6 @@ CREATE TABLE IF NOT EXISTS sync_logs (
 -- Create index on started_at for efficient querying
 CREATE INDEX IF NOT EXISTS idx_sync_logs_started_at ON sync_logs(started_at DESC);
 
+
+
+
