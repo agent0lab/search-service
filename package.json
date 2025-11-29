@@ -6,7 +6,11 @@
   "main": "worker/src/index.ts",
   "scripts": {
     "dev": "wrangler dev",
+    "dev:test-cron": "wrangler dev --test-scheduled",
     "deploy": "wrangler deploy",
+    "tail": "wrangler tail",
+    "sync:direct": "npx tsx scripts/sync-local-direct.ts",
+    "test:local": "npx tsx scripts/test-local-queue.ts",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -31,7 +35,7 @@
     "miniflare": "^3.20241125.1",
     "typescript": "^5.3.3",
     "vitest": "^1.0.0",
-    "wrangler": "^3.19.0"
+    "wrangler": "^4.51.0"
   },
   "overrides": {
     "@pinecone-database/pinecone": "^6.1.3"
