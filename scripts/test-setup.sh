@@ -44,3 +44,6 @@ echo "2. Update database_id in wrangler.toml"
 echo "3. Apply migrations: wrangler d1 migrations apply semantic-sync-state"
 echo "4. Set secrets: wrangler secret put VENICE_API_KEY, etc."
 
+
+
+
