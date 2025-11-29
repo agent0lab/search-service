@@ -4,19 +4,50 @@ import type { SemanticQueryRequest } from '../utils/interfaces.js';
 import type { SemanticSearchResponse } from '../utils/types.js';
 import { SemanticSearchManager } from '../utils/manager.js';
 import { resolveSemanticSearchProviders } from '../utils/config.js';
-import { VeniceEmbeddingProvider } from '../utils/providers/venice-embedding.js';
-import { PineconeVectorStore } from '../utils/providers/pinecone-vector-store.js';
+import { RequestLogger } from '../utils/request-logger.js';
+import { createErrorResponse, ErrorCode } from '../utils/errors.js';
+
+/**
+ * Get client IP address from request
+ */
+function getClientIP(c: Context<{ Bindings: Env }>): string {
+  const cfIP = c.req.header('cf-connecting-ip');
+  if (cfIP) {
+    return cfIP;
+  }
+  const forwardedFor = c.req.header('x-forwarded-for');
+  if (forwardedFor) {
+    return forwardedFor.split(',')[0].trim();
+  }
+  return 'unknown';
+}
 
 export async function searchHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
-  try {
-    // Parse request body
-    const body = await c.req.json<SemanticQueryRequest>();
-    
-    // Validate required fields
-    if (!body.query || typeof body.query !== 'string') {
-      return c.json({ error: 'Missing or invalid query parameter' }, 400);
-    }
+  const startTime = Date.now();
+  const ipAddress = getClientIP(c);
+  const requestLogger = new RequestLogger(c.env.DB);
 
+  // Get validated body from middleware
+  const body = c.get('validatedBody') as SemanticQueryRequest | undefined;
+  if (!body) {
+    // This shouldn't happen if validation middleware is properly configured
+    const errorResponse = createErrorResponse(
+      new Error('Request validation failed'),
+      400,
+      ErrorCode.VALIDATION_ERROR
+    );
+    await requestLogger.logRequest({
+      ipAddress,
+      query: '',
+      responseCount: 0,
+      durationMs: Date.now() - startTime,
+      statusCode: 400,
+      errorMessage: errorResponse.error,
+    });
+    return c.json(errorResponse, 400);
+  }
+
+  try {
     // Initialize providers from environment
     const providers = resolveSemanticSearchProviders({
       embedding: {
@@ -42,11 +73,39 @@ export async function searchHandler(c: Context<{ Bindings: Env }>): Promise<Resp
       minScore: body.minScore,
     });
 
+    const durationMs = Date.now() - startTime;
+
+    // Log successful request
+    await requestLogger.logRequest({
+      ipAddress,
+      query: body.query,
+      topK: body.topK,
+      filters: body.filters,
+      responseCount: response.results.length,
+      durationMs,
+      statusCode: 200,
+    });
+
     return c.json(response);
   } catch (error) {
+    const durationMs = Date.now() - startTime;
     console.error('Search error:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return c.json({ error: message }, 500);
+
+    const errorResponse = createErrorResponse(error, 500, ErrorCode.INTERNAL_ERROR);
+
+    // Log failed request
+    await requestLogger.logRequest({
+      ipAddress,
+      query: body.query || '',
+      topK: body.topK,
+      filters: body.filters,
+      responseCount: 0,
+      durationMs,
+      statusCode: errorResponse.status,
+      errorMessage: errorResponse.error,
+    });
+
+    return c.json(errorResponse, errorResponse.status);
   }
 }
 
