@@ -1,0 +1,15 @@
+main = ".open-next/worker.js"
+name = "admin-dashboard"
+compatibility_date = "2025-03-25"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+# D1 Database binding (same database as search-service)
+[[d1_databases]]
+binding = "DB"
+database_name = "semantic-sync-state"
+database_id = "164eaaf0-6527-4e1b-b859-5805aae1b6c9"
+
