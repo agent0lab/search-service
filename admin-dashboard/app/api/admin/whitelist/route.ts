@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySessionToken } from '@/lib/auth';
-import { getDB } from '@/lib/get-db';
+import { getDBAsync } from '@/lib/get-db';
 
 async function getAuthenticatedAddress(request: NextRequest): Promise<string | null> {
   const token = request.cookies.get('admin-session')?.value;
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const db = getDB();
+    const db = await getDBAsync();
     const whitelist = await db.getWhitelist();
 
     return NextResponse.json({ whitelist });
@@ -42,7 +42,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { walletAddress } = await request.json();
+    const body = await request.json() as { walletAddress?: string };
+    const { walletAddress } = body;
 
     if (!walletAddress || typeof walletAddress !== 'string') {
       return NextResponse.json({ error: 'Invalid wallet address' }, { status: 400 });
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid Ethereum address format' }, { status: 400 });
     }
 
-    const db = getDB();
+    const db = await getDBAsync();
     await db.addToWhitelist(walletAddress, address);
 
     return NextResponse.json({ success: true });
@@ -80,7 +81,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Missing wallet address' }, { status: 400 });
     }
 
-    const db = getDB();
+    const db = await getDBAsync();
     await db.removeFromWhitelist(walletAddress);
 
     return NextResponse.json({ success: true });

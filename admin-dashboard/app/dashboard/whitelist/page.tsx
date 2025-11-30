@@ -30,7 +30,7 @@ export default function WhitelistPage() {
     try {
       const res = await fetch('/api/admin/whitelist');
       if (res.ok) {
-        const data = await res.json();
+        const data = await res.json() as { whitelist: WhitelistEntry[] };
         setWhitelist(data.whitelist);
       }
     } catch (error) {
@@ -58,7 +58,7 @@ export default function WhitelistPage() {
         setNewAddress('');
         fetchWhitelist();
       } else {
-        const data = await res.json();
+        const data = await res.json() as { error?: string };
         alert(data.error || 'Failed to add address');
       }
     } catch (error) {
@@ -82,7 +82,7 @@ export default function WhitelistPage() {
       if (res.ok) {
         fetchWhitelist();
       } else {
-        const data = await res.json();
+        const data = await res.json() as { error?: string };
         alert(data.error || 'Failed to remove address');
       }
     } catch (error) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { StatsCards } from '@/components/dashboard/StatsCards';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -11,16 +11,12 @@ export default function DashboardPage() {
   const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d'>('24h');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchStats();
-  }, [timeRange]);
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/admin/stats?range=${timeRange}`);
       if (res.ok) {
-        const data = await res.json();
+        const data = await res.json() as DashboardStats;
         setStats(data);
       }
     } catch (error) {
@@ -28,7 +24,11 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [timeRange]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
   if (loading) {
     return <div>Loading...</div>;

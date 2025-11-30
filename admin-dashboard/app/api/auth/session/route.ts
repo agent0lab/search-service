@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySessionToken } from '@/lib/auth';
-import { getDB } from '@/lib/get-db';
+import { getDBAsync } from '@/lib/get-db';
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify address is still whitelisted
-    const db = getDB();
+    const db = await getDBAsync();
     const isWhitelisted = await db.isWhitelisted(verification.session.address);
 
     if (!isWhitelisted) {

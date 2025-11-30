@@ -1,3 +1,4 @@
 // Empty module to replace React Native async storage in browser
-export default {};
+const emptyModule = {};
+export default emptyModule;
 

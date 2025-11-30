@@ -34,7 +34,8 @@ export function LoginButton() {
         throw new Error('Failed to get challenge');
       }
 
-      const { message, nonce } = await challengeResponse.json();
+      const challengeData = await challengeResponse.json() as { message: string; nonce?: string };
+      const { message } = challengeData;
 
       // Sign message
       const signature = await signMessageAsync({ message });
@@ -47,7 +48,7 @@ export function LoginButton() {
       });
 
       if (!verifyResponse.ok) {
-        const data = await verifyResponse.json();
+        const data = await verifyResponse.json() as { error?: string };
         throw new Error(data.error || 'Verification failed');
       }
 

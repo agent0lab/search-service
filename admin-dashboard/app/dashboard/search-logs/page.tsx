@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   Table,
   TableBody,
@@ -28,11 +28,7 @@ export default function SearchLogsPage() {
     query: '',
   });
 
-  useEffect(() => {
-    fetchLogs();
-  }, [page, filters]);
-
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -49,7 +45,7 @@ export default function SearchLogsPage() {
 
       const res = await fetch(`/api/admin/logs/search?${params}`);
       if (res.ok) {
-        const data = await res.json();
+        const data = await res.json() as { logs: RequestLog[]; total: number };
         setLogs(data.logs);
         setTotal(data.total);
       }
@@ -58,7 +54,11 @@ export default function SearchLogsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit, filters]);
+
+  useEffect(() => {
+    fetchLogs();
+  }, [fetchLogs]);
 
   const totalPages = Math.ceil(total / limit);
 

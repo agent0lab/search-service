@@ -10,8 +10,8 @@ export async function POST(request: NextRequest) {
     const { createSessionToken, getSessionCookieName, getSessionCookieOptions } = await import('@/lib/auth');
     console.log('SIWE verify: Imported auth utilities');
     
-    const { getDB } = await import('@/lib/get-db');
-    console.log('SIWE verify: Imported getDB');
+    const { getDBAsync } = await import('@/lib/get-db');
+    console.log('SIWE verify: Imported getDBAsync');
 
     const secret = process.env.SIWE_SECRET;
     if (!secret) {
@@ -19,7 +19,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
     }
 
-    const { message, signature } = await request.json();
+    const body = await request.json() as { message?: string; signature?: string };
+    const { message, signature } = body;
     console.log('SIWE verify: Received message and signature');
 
     if (!message || !signature) {
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
 
     // Check whitelist
     console.log('SIWE verify: Checking whitelist for:', verification.address);
-    const db = getDB();
+    const db = await getDBAsync();
     const isWhitelisted = await db.isWhitelisted(verification.address!);
     console.log('SIWE verify: Whitelist check result:', isWhitelisted);
 

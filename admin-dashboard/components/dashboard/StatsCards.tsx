@@ -1,7 +1,7 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, Clock, CheckCircle, XCircle, Database, RefreshCw } from 'lucide-react';
+import { TrendingUp, Clock, CheckCircle, Database } from 'lucide-react';
 import type { DashboardStats } from '@/lib/types';
 
 interface StatsCardsProps {

@@ -18,6 +18,7 @@ if (!projectId) {
 // Suppress analytics errors in development if origin is not on allowlist
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
   const originalError = console.error;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   console.error = (...args: any[]) => {
     const message = args[0]?.toString() || '';
     // Suppress allowlist errors in development
@@ -37,14 +38,5 @@ export const wagmiConfig = getDefaultConfig({
   projectId: projectId || '00000000000000000000000000000000', // Placeholder - replace with your project ID
   chains: [mainnet],
   ssr: true, // Enable SSR for Next.js
-  walletConnectParameters: {
-    projectId: projectId || '00000000000000000000000000000000',
-    metadata: {
-      name: 'Search Service Admin',
-      description: 'Admin dashboard for semantic search service',
-      url: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000',
-      icons: [],
-    },
-  },
 });
 

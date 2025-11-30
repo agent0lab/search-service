@@ -20,12 +20,12 @@ export default function DashboardLayout({
   useEffect(() => {
     // Check session
     fetch('/api/auth/session')
-      .then((res) => res.json())
+      .then((res) => res.json() as Promise<{ authenticated: boolean; address?: string }>)
       .then((data) => {
         if (!data.authenticated) {
           router.push('/');
         } else {
-          setAddress(data.address);
+          setAddress(data.address || null);
         }
       });
   }, [router]);

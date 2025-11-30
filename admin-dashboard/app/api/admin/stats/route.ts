@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDB } from '@/lib/get-db';
+import { getDBAsync } from '@/lib/get-db';
 
 export async function GET(request: NextRequest) {
   try {
@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const timeRange = (searchParams.get('range') as '24h' | '7d' | '30d') || '24h';
 
-    const db = getDB();
+    const db = await getDBAsync();
     const requestStats = await db.getRequestStats(timeRange);
     const indexingStats = await db.getIndexingStats();
     const indexingLogs = await db.getIndexingLogs(1000, 0); // Get all for count

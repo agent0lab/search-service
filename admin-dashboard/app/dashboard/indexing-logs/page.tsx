@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   Table,
   TableBody,
@@ -24,11 +24,7 @@ export default function IndexingLogsPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
 
-  useEffect(() => {
-    fetchLogs();
-  }, [page, statusFilter]);
-
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -42,7 +38,7 @@ export default function IndexingLogsPage() {
 
       const res = await fetch(`/api/admin/logs/indexing?${params}`);
       if (res.ok) {
-        const data = await res.json();
+        const data = await res.json() as { logs: IndexingLog[]; total: number };
         setLogs(data.logs);
         setTotal(data.total);
       }
@@ -51,7 +47,11 @@ export default function IndexingLogsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit, statusFilter]);
+
+  useEffect(() => {
+    fetchLogs();
+  }, [fetchLogs]);
 
   const totalPages = Math.ceil(total / limit);
 
