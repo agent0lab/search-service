@@ -5,6 +5,9 @@ node_modules/
 dist/
 .wrangler/
 *.tsbuildinfo
+.next/
+.open-next/
+out/
 
 # Environment variables
 .env
@@ -31,4 +34,11 @@ yarn-error.log*
 
 # Cache
 .cache/
+
+# Admin Dashboard
+admin-dashboard/.next/
+admin-dashboard/.open-next/
+admin-dashboard/out/
+admin-dashboard/node_modules/
+admin-dashboard/.env.local
 

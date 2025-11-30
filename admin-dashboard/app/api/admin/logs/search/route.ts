@@ -1,0 +1,22 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getDB } from '@/lib/get-db';
+
+export async function GET(request: NextRequest) {
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const offset = parseInt(searchParams.get('offset') || '0', 10);
+
+    const db = getDB();
+    const result = await db.getRequestLogs(limit, offset);
+
+    return NextResponse.json({ ...result, limit, offset });
+  } catch (error) {
+    console.error('Search logs API error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch search logs' },
+      { status: 500 }
+    );
+  }
+}
+
