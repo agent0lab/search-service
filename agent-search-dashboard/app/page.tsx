@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Search, Filter, X, ChevronDown, ChevronUp, LayoutGrid, Table as TableIcon } from 'lucide-react';
+import { Search, Filter, X, ChevronDown, ChevronUp, LayoutGrid, Table as TableIcon, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,12 +11,18 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 import { searchAgents } from '@/lib/search-client';
 import type { SemanticSearchResult, SemanticSearchFilters } from '@/lib/types';
 import Link from 'next/link';
 import { StatsDashboard } from '@/components/StatsDashboard';
 import { RecentAgents } from '@/components/RecentAgents';
 import { AgentCard } from '@/components/agent/AgentCard';
+import { LiquidEtherBackground } from '@/components/LiquidEtherBackground';
 
 const STORAGE_KEY = 'agent-search-state';
 
@@ -44,7 +50,6 @@ function HomeContent() {
   const [showFilters, setShowFilters] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [topK, setTopK] = useState(10);
-  const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({});
   const [agentImages, setAgentImages] = useState<Record<string, string>>({});
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
   
@@ -59,17 +64,6 @@ function HomeContent() {
   const [customTags, setCustomTags] = useState<string>('');
   const [customCapabilities, setCustomCapabilities] = useState<string>('');
   
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (!target.closest('.relative')) {
-        setOpenDropdowns({});
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   // Restore view mode from localStorage
   useEffect(() => {
@@ -310,18 +304,17 @@ function HomeContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+    <div className="min-h-screen relative">
+      <LiquidEtherBackground />
       {/* Header */}
-      <header className="border-b bg-white dark:bg-slate-800 sticky top-0 z-10 shadow-sm">
+      <header className="border-b bg-slate-900/80 backdrop-blur-md sticky top-0 z-40 shadow-lg transition-all border-slate-800/50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+            <div className="group">
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent transition-all group-hover:from-primary/90 group-hover:via-primary/70 group-hover:to-primary/50">
                 ERC-8004 Agent Explorer
               </h1>
-              <p className="text-xs text-muted-foreground mt-1">
-                Discover and explore AI agents on the blockchain
-              </p>
+        
             </div>
             <div className="flex items-center gap-4">
               {isAuthenticated ? (
@@ -342,67 +335,84 @@ function HomeContent() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 relative z-10">
         {/* Search Bar - At the top */}
         <div className="mb-6">
           <div className="flex gap-3 items-center">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
+            <div className="flex-1 relative group">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 transition-colors group-focus-within:text-primary" />
               <Input
                 type="text"
                 placeholder="Search by description, capabilities, or use natural language..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyPress={handleKeyPress}
-                className="pl-10 h-11"
+                className="pl-10 h-11 transition-all focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
             </div>
-            <Button
-              variant="outline"
-              onClick={() => setShowFilters(!showFilters)}
-              className="h-11"
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              Advanced Filters
-              {showFilters ? <ChevronUp className="h-4 w-4 ml-2" /> : <ChevronDown className="h-4 w-4 ml-2" />}
-            </Button>
-            <Button onClick={handleSearch} disabled={loading} className="h-11 px-6">
-              {loading ? 'Searching...' : 'Search'}
-            </Button>
-          </div>
-
-          {/* Filters Panel */}
-          {showFilters && (
-            <Card className="mt-4">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold">Filters</h3>
-                  <Button variant="ghost" size="sm" onClick={clearFilters}>
-                    <X className="h-4 w-4 mr-2" />
-                    Clear All
-                  </Button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {/* Blockchain Networks */}
-                  <div className="relative">
-                    <Label className="mb-2 block text-sm font-medium">Blockchain Networks</Label>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-between"
-                      onClick={() => setOpenDropdowns(prev => ({ ...prev, chains: !prev.chains }))}
-                    >
-                      <span>
-                        {selectedChainIds.length === 0
-                          ? 'All networks'
-                          : selectedChainIds.length === 1
-                          ? availableChainIds.find(c => c.id === selectedChainIds[0])?.name || 'Selected'
-                          : `${selectedChainIds.length} selected`}
-                      </span>
-                      <ChevronDown className="h-4 w-4 opacity-50" />
+            <Dialog open={showFilters} onOpenChange={setShowFilters}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="h-11"
+                >
+                  <Filter className="h-4 w-4 mr-2" />
+                  Advanced Filters
+                  {(selectedChainIds.length > 0 || selectedCapabilities.length > 0 || selectedTags.length > 0 || selectedInputModes.length > 0 || selectedOutputModes.length > 0) && (
+                    <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
+                      {selectedChainIds.length + selectedCapabilities.length + selectedTags.length + selectedInputModes.length + selectedOutputModes.length}
+                    </Badge>
+                  )}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto sm:max-w-4xl">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl">Advanced Filters</DialogTitle>
+                  <DialogDescription className="text-base">
+                    Filter agents by blockchain network, capabilities, trust models, and more
+                  </DialogDescription>
+                </DialogHeader>
+                <Separator className="my-4" />
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-sm">Filter Options</h3>
+                    <Button variant="ghost" size="sm" onClick={clearFilters}>
+                      <X className="h-4 w-4 mr-2" />
+                      Clear All
                     </Button>
-                    {openDropdowns.chains && (
-                      <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md p-2">
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Blockchain Networks */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Label className="text-sm font-medium">Blockchain Networks</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Filter agents by blockchain network</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-between"
+                        >
+                          <span>
+                            {selectedChainIds.length === 0
+                              ? 'All networks'
+                              : selectedChainIds.length === 1
+                              ? availableChainIds.find(c => c.id === selectedChainIds[0])?.name || 'Selected'
+                              : `${selectedChainIds.length} selected`}
+                          </span>
+                          <ChevronDown className="h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80" align="start">
                         <div className="space-y-2 max-h-60 overflow-y-auto">
                           {availableChainIds.map((chain) => (
                             <div key={chain.id} className="flex items-center space-x-2">
@@ -420,8 +430,8 @@ function HomeContent() {
                             </div>
                           ))}
                         </div>
-                      </div>
-                    )}
+                      </PopoverContent>
+                    </Popover>
                     {selectedChainIds.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2">
                         {selectedChainIds.map((id) => {
@@ -443,24 +453,35 @@ function HomeContent() {
                   </div>
 
                   {/* Capabilities */}
-                  <div className="relative">
-                    <Label className="mb-2 block text-sm font-medium">Capabilities</Label>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-between"
-                      onClick={() => setOpenDropdowns(prev => ({ ...prev, capabilities: !prev.capabilities }))}
-                    >
-                      <span>
-                        {selectedCapabilities.length === 0
-                          ? 'All capabilities'
-                          : selectedCapabilities.length === 1
-                          ? selectedCapabilities[0].charAt(0).toUpperCase() + selectedCapabilities[0].slice(1)
-                          : `${selectedCapabilities.length} selected`}
-                      </span>
-                      <ChevronDown className="h-4 w-4 opacity-50" />
-                    </Button>
-                    {openDropdowns.capabilities && (
-                      <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md p-2">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Label className="text-sm font-medium">Capabilities</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Filter by agent capabilities (e.g., DeFi, NFT, Gaming)</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-between"
+                        >
+                          <span>
+                            {selectedCapabilities.length === 0
+                              ? 'All capabilities'
+                              : selectedCapabilities.length === 1
+                              ? selectedCapabilities[0].charAt(0).toUpperCase() + selectedCapabilities[0].slice(1)
+                              : `${selectedCapabilities.length} selected`}
+                          </span>
+                          <ChevronDown className="h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80" align="start">
                         <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto">
                           {availableCapabilities.map((cap) => (
                             <div key={cap} className="flex items-center space-x-2">
@@ -478,8 +499,8 @@ function HomeContent() {
                             </div>
                           ))}
                         </div>
-                      </div>
-                    )}
+                      </PopoverContent>
+                    </Popover>
                     {selectedCapabilities.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2">
                         {selectedCapabilities.map((cap) => (
@@ -560,24 +581,35 @@ function HomeContent() {
                   </div>
 
                   {/* Tags (Trust Models) */}
-                  <div className="relative">
-                    <Label className="mb-2 block text-sm font-medium">Trust Models</Label>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-between"
-                      onClick={() => setOpenDropdowns(prev => ({ ...prev, tags: !prev.tags }))}
-                    >
-                      <span>
-                        {selectedTags.length === 0
-                          ? 'All trust models'
-                          : selectedTags.length === 1
-                          ? selectedTags[0].split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-')
-                          : `${selectedTags.length} selected`}
-                      </span>
-                      <ChevronDown className="h-4 w-4 opacity-50" />
-                    </Button>
-                    {openDropdowns.tags && (
-                      <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md p-2">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Label className="text-sm font-medium">Trust Models</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Filter by trust model type (reputation, crypto-economic, TEE)</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-between"
+                        >
+                          <span>
+                            {selectedTags.length === 0
+                              ? 'All trust models'
+                              : selectedTags.length === 1
+                              ? selectedTags[0].split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-')
+                              : `${selectedTags.length} selected`}
+                          </span>
+                          <ChevronDown className="h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80" align="start">
                         <div className="space-y-2 max-h-60 overflow-y-auto">
                           {availableTags.map((tag) => {
                             const displayName = tag.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-');
@@ -607,8 +639,8 @@ function HomeContent() {
                             );
                           })}
                         </div>
-                      </div>
-                    )}
+                      </PopoverContent>
+                    </Popover>
                     {selectedTags.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2">
                         {selectedTags.map((tag) => (
@@ -626,71 +658,90 @@ function HomeContent() {
                     )}
                   </div>
 
-                  {/* Advanced Filters */}
-                  <div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowAdvanced(!showAdvanced)}
-                      className="mb-3"
-                    >
-                      {showAdvanced ? <ChevronUp className="h-4 w-4 mr-2" /> : <ChevronDown className="h-4 w-4 mr-2" />}
-                      Advanced Filters
-                    </Button>
-                    {showAdvanced && (
-                      <div className="space-y-4 mt-2 p-4 bg-muted/50 rounded-md">
-                        <div>
-                          <Label htmlFor="customTags" className="text-sm">Custom Trust Models (comma-separated)</Label>
-                          <Input
-                            id="customTags"
-                            type="text"
-                            placeholder="e.g., reputation, crypto-economic"
-                            value={customTags}
-                            onChange={(e) => setCustomTags(e.target.value)}
-                            className="mt-1"
-                          />
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Add custom trust models separated by commas
-                          </p>
+                    {/* Advanced Filters */}
+                    <div className="md:col-span-2">
+                      <Separator className="my-4" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowAdvanced(!showAdvanced)}
+                        className="mb-3"
+                      >
+                        {showAdvanced ? <ChevronUp className="h-4 w-4 mr-2" /> : <ChevronDown className="h-4 w-4 mr-2" />}
+                        Advanced Filters
+                      </Button>
+                      {showAdvanced && (
+                        <div className="space-y-4 mt-2 p-4 bg-muted/50 rounded-md">
+                          <div>
+                            <Label htmlFor="customTags" className="text-sm">Custom Trust Models (comma-separated)</Label>
+                            <Input
+                              id="customTags"
+                              type="text"
+                              placeholder="e.g., reputation, crypto-economic"
+                              value={customTags}
+                              onChange={(e) => setCustomTags(e.target.value)}
+                              className="mt-1"
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Add custom trust models separated by commas
+                            </p>
+                          </div>
+                          <div>
+                            <Label htmlFor="customCapabilities" className="text-sm">Custom Capabilities (comma-separated)</Label>
+                            <Input
+                              id="customCapabilities"
+                              type="text"
+                              placeholder="e.g., defi, nft"
+                              value={customCapabilities}
+                              onChange={(e) => setCustomCapabilities(e.target.value)}
+                              className="mt-1"
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Add custom capabilities separated by commas
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <Label htmlFor="customCapabilities" className="text-sm">Custom Capabilities (comma-separated)</Label>
-                          <Input
-                            id="customCapabilities"
-                            type="text"
-                            placeholder="e.g., defi, nft"
-                            value={customCapabilities}
-                            onChange={(e) => setCustomCapabilities(e.target.value)}
-                            className="mt-1"
-                          />
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Add custom capabilities separated by commas
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
 
-                  {/* Top K */}
-                  <div>
-                    <Label htmlFor="topK" className="text-sm font-medium">Results (Top K)</Label>
-                    <Input
-                      id="topK"
-                      type="number"
-                      min="1"
-                      max="10"
-                      value={topK}
-                      onChange={(e) => setTopK(Math.min(Math.max(1, parseInt(e.target.value, 10) || 1), 10))}
-                      className="mt-1"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Maximum 10 results
-                    </p>
+                    {/* Top K */}
+                    <div>
+                      <Label htmlFor="topK" className="text-sm font-medium">Results (Top K)</Label>
+                      <Input
+                        id="topK"
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={topK}
+                        onChange={(e) => setTopK(Math.min(Math.max(1, parseInt(e.target.value, 10) || 1), 10))}
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Maximum 10 results
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              </DialogContent>
+            </Dialog>
+            <Button 
+              onClick={handleSearch} 
+              disabled={loading} 
+              className="h-11 px-6 transition-all hover:scale-105 active:scale-95 shadow-md hover:shadow-lg"
+            >
+              {loading ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Searching...
+                </>
+              ) : (
+                <>
+                  <Search className="h-4 w-4 mr-2" />
+                  Search
+                </>
+              )}
+            </Button>
+          </div>
         </div>
 
         {/* Statistics Dashboard */}
@@ -702,10 +753,10 @@ function HomeContent() {
 
         {/* Error Message */}
         {error && (
-          <div className="mb-4">
-            <Card className="border-destructive">
+          <div className="mb-4 animate-in fade-in-0 slide-in-from-top-2 duration-300">
+            <Card className="border-destructive bg-destructive/5 shadow-lg">
               <CardContent className="p-4">
-                <p className="text-destructive">{error}</p>
+                <p className="text-destructive font-medium">{error}</p>
               </CardContent>
             </Card>
           </div>
@@ -725,36 +776,55 @@ function HomeContent() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <Button
-                  variant={viewMode === 'card' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('card')}
-                >
-                  <LayoutGrid className="h-4 w-4 mr-2" />
-                  Card
-                </Button>
-                <Button
-                  variant={viewMode === 'table' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('table')}
-                >
-                  <TableIcon className="h-4 w-4 mr-2" />
-                  Table
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={viewMode === 'card' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setViewMode('card')}
+                    >
+                      <LayoutGrid className="h-4 w-4 mr-2" />
+                      Card
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Card view - See agent details in cards</p>
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={viewMode === 'table' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setViewMode('table')}
+                    >
+                      <TableIcon className="h-4 w-4 mr-2" />
+                      Table
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Table view - Compact list format</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
             </div>
 
             {/* Card View */}
             {viewMode === 'card' && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {results.map((result) => (
-                  <AgentCard
+                {results.map((result, index) => (
+                  <div 
                     key={result.vectorId}
-                    result={result}
-                    agentImage={agentImages[result.agentId]}
-                    getChainName={getChainName}
-                    formatAgentId={formatAgentId}
-                  />
+                    className="animate-in fade-in-0 slide-in-from-bottom-4"
+                    style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}
+                  >
+                    <AgentCard
+                      result={result}
+                      agentImage={agentImages[result.agentId]}
+                      getChainName={getChainName}
+                      formatAgentId={formatAgentId}
+                    />
+                  </div>
                 ))}
               </div>
             )}
@@ -762,7 +832,7 @@ function HomeContent() {
             {/* Table View */}
             {viewMode === 'table' && (
               <div className="overflow-x-auto">
-                <Card>
+                <Card className="bg-slate-900/60 backdrop-blur-sm border-slate-800/50">
                   <CardContent className="p-0">
                     <Table>
                       <TableHeader>
@@ -925,11 +995,64 @@ function HomeContent() {
           </div>
         )}
 
+        {/* Loading State */}
+        {loading && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-8 w-48" />
+              <div className="flex gap-2">
+                <Skeleton className="h-9 w-20" />
+                <Skeleton className="h-9 w-20" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {[...Array(8)].map((_, i) => (
+                <Card key={i}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3 mb-3">
+                      <Skeleton className="h-16 w-16 rounded-lg" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-5 w-3/4" />
+                        <Skeleton className="h-4 w-1/2" />
+                      </div>
+                    </div>
+                    <Skeleton className="h-4 w-full mb-2" />
+                    <Skeleton className="h-4 w-2/3 mb-3" />
+                    <Skeleton className="h-2 w-full mb-3" />
+                    <div className="flex gap-2">
+                      <Skeleton className="h-5 w-16" />
+                      <Skeleton className="h-5 w-16" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Empty State */}
         {!loading && results.length === 0 && query && !error && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">No results found. Try adjusting your search or filters.</p>
-          </div>
+          <Card className="border-dashed animate-in fade-in-0 zoom-in-95 duration-500">
+            <CardContent className="flex flex-col items-center justify-center py-16">
+              <div className="rounded-full bg-gradient-to-br from-muted to-muted/50 p-4 mb-6 shadow-lg">
+                <Search className="h-8 w-8 text-muted-foreground animate-pulse" />
+              </div>
+              <h3 className="text-xl font-semibold mb-3 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                No results found
+              </h3>
+              <p className="text-muted-foreground text-center max-w-md mb-6">
+                Try adjusting your search query or filters to find more agents.
+              </p>
+              <Button 
+                variant="outline" 
+                onClick={clearFilters}
+                className="transition-all hover:scale-105 active:scale-95"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Clear Filters
+              </Button>
+            </CardContent>
+          </Card>
         )}
 
         {/* Initial State */}

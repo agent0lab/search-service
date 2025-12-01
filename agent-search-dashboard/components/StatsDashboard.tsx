@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, Activity, Network, TrendingUp, Code, Users2, Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Users, Activity, Network, TrendingUp, Code, Users2 } from 'lucide-react';
 
 interface StatsData {
   totalAgents: number;
@@ -45,16 +46,33 @@ export function StatsDashboard() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {[...Array(4)].map((_, i) => (
-          <Card key={i}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-center h-20">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="mb-8 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-4 rounded" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-20 mb-2" />
+                <Skeleton className="h-3 w-32" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-5 w-40" />
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-6 w-32 rounded-full" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -76,27 +94,31 @@ export function StatsDashboard() {
     <div className="mb-8 space-y-6">
       {/* Main Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className="hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 hover:-translate-y-1 border-2 hover:border-primary/30 cursor-pointer group bg-slate-900/60 backdrop-blur-sm border-slate-800/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Agents</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium group-hover:text-primary transition-colors">Total Agents</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors group-hover:scale-110" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalAgents.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <div className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent group-hover:from-primary group-hover:to-primary/70 transition-all">
+              {stats.totalAgents.toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 group-hover:text-foreground/80 transition-colors">
               Across {totalChains} network{totalChains !== 1 ? 's' : ''}
             </p>
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className="hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 hover:-translate-y-1 border-2 hover:border-primary/30 cursor-pointer group bg-slate-900/60 backdrop-blur-sm border-slate-800/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Agents</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium group-hover:text-primary transition-colors">Active Agents</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors group-hover:scale-110" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.activeAgents.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <div className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent group-hover:from-primary group-hover:to-primary/70 transition-all">
+              {stats.activeAgents.toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 group-hover:text-foreground/80 transition-colors">
               {stats.totalAgents > 0
                 ? `${Math.round((stats.activeAgents / stats.totalAgents) * 100)}% of total`
                 : '0% of total'}
@@ -104,23 +126,25 @@ export function StatsDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className="hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 hover:-translate-y-1 border-2 hover:border-primary/30 cursor-pointer group bg-slate-900/60 backdrop-blur-sm border-slate-800/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Recent (24h)</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium group-hover:text-primary transition-colors">Recent (24h)</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors group-hover:scale-110" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.recentRegistrations24h.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <div className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent group-hover:from-primary group-hover:to-primary/70 transition-all">
+              {stats.recentRegistrations24h.toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 group-hover:text-foreground/80 transition-colors">
               {stats.recentRegistrations7d} in last 7 days
             </p>
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className="hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 hover:-translate-y-1 border-2 hover:border-primary/30 cursor-pointer group bg-slate-900/60 backdrop-blur-sm border-slate-800/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Protocol Support</CardTitle>
-            <Network className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium group-hover:text-primary transition-colors">Protocol Support</CardTitle>
+            <Network className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors group-hover:scale-110" />
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-4">

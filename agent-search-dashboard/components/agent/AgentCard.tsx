@@ -3,7 +3,9 @@
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { CheckCircle2, XCircle, Code, Users, Copy, ExternalLink } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { CheckCircle2, XCircle, Code, Users, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { SemanticSearchResult } from '@/lib/types';
 import { useState } from 'react';
@@ -64,7 +66,7 @@ export function AgentCard({ result, agentImage, getChainName, formatAgentId }: A
 
   return (
     <Link href={agentUrl} className="block h-full">
-      <Card className="h-full hover:shadow-lg transition-all duration-200 cursor-pointer group border-2 hover:border-primary/50">
+      <Card className="h-full hover:shadow-xl hover:shadow-primary/20 transition-all duration-300 cursor-pointer group border-2 hover:border-primary/50 hover:-translate-y-1 bg-slate-900/60 backdrop-blur-sm border-slate-800/50">
         <CardContent className="p-4">
           {/* Header with Image and Basic Info */}
           <div className="flex items-start gap-3 mb-3">
@@ -85,7 +87,7 @@ export function AgentCard({ result, agentImage, getChainName, formatAgentId }: A
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-lg mb-1 truncate group-hover:text-primary transition-colors">
+              <h3 className="font-semibold text-lg mb-1 truncate group-hover:text-primary transition-all duration-300 group-hover:scale-105 origin-left">
                 {result.name || `Agent ${formatAgentId(result.agentId)}`}
               </h3>
               <div className="flex items-center gap-2 flex-wrap">
@@ -121,31 +123,40 @@ export function AgentCard({ result, agentImage, getChainName, formatAgentId }: A
             <span className="text-xs font-mono text-muted-foreground">
               ID: {formatAgentId(result.agentId)}
             </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-5 w-5 p-0"
-              onClick={(e) => {
-                e.preventDefault();
-                copyToClipboard(result.agentId);
-              }}
-            >
-              <Copy className="h-3 w-3" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5 p-0"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    copyToClipboard(result.agentId);
+                  }}
+                >
+                  <Copy className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{copied ? 'Copied!' : 'Copy Agent ID'}</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
           
           {/* Score */}
           <div className="mb-3">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-muted-foreground">Relevance</span>
+            <div className="flex items-center justify-between mb-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-xs text-muted-foreground cursor-help">Relevance Score</span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Search relevance: {(result.score * 100).toFixed(1)}%</p>
+                </TooltipContent>
+              </Tooltip>
               <span className="text-xs font-semibold">{(result.score * 100).toFixed(0)}%</span>
             </div>
-            <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
-              <div
-                className="bg-primary h-full transition-all duration-300"
-                style={{ width: `${result.score * 100}%` }}
-              />
-            </div>
+            <Progress value={result.score * 100} className="h-2" />
           </div>
           
           {/* Protocol Support */}
