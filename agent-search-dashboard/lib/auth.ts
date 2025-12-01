@@ -1,7 +1,7 @@
 import { SignJWT, jwtVerify } from 'jose';
 import type { Session } from './types';
 
-const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days
+const SESSION_DURATION = 1 * 24 * 60 * 60 * 1000; // 1 day
 
 export async function createSessionToken(address: string, secret: string): Promise<string> {
   const now = Date.now();
