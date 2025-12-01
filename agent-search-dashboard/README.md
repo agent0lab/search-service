@@ -1,13 +1,23 @@
-# Admin Dashboard
+# Agent Search Dashboard
 
-Next.js admin dashboard for the semantic search service with SIWE authentication.
+Public-facing agent search dashboard with semantic search capabilities and admin section for managing the search service.
 
 ## Features
 
+### Public Features
+- **Semantic Search**: Natural language search for ERC-8004 agents
+- **Advanced Filters**: Filter by capabilities, input/output modes, and more
+- **Agent Details**: Explore comprehensive agent information including:
+  - Registration details (name, description, image)
+  - Endpoints (MCP, A2A, ENS, DID)
+  - Capabilities (tools, prompts, resources, skills)
+  - Trust models and metadata
+
+### Admin Features (Authenticated)
 - **SIWE Authentication**: Sign in with Ethereum wallet
-- **Wallet Whitelist**: Only whitelisted addresses can access the dashboard
+- **Wallet Whitelist**: Only whitelisted addresses can access admin section
 - **Search Logs**: View and filter search request logs
-- **Indexing Logs**: Monitor indexing sync operations
+- **Indexing Logs**: Monitor indexing sync operations with detailed batch events
 - **Dashboard Stats**: Overview of service metrics and statistics
 - **Whitelist Management**: Add/remove admin wallet addresses
 
@@ -31,6 +41,8 @@ Required variables:
 - `SIWE_DOMAIN`: Domain for SIWE (e.g., `localhost:3000` for dev, your domain for prod)
 - `SIWE_SECRET`: Secret key for JWT tokens (use a strong random string)
 - `NEXT_PUBLIC_APP_URL`: Public URL of the app
+- `NEXT_PUBLIC_WORKER_URL`: URL of the search service worker (e.g., `https://agent0-semantic-search.dawid-pisarczyk.workers.dev`)
+- `RPC_URL`: Ethereum RPC endpoint for agent details (server-side only)
 
 ### 3. Apply Database Migration
 
@@ -72,6 +84,14 @@ npm run preview
 
 This builds the app and runs it locally using `wrangler dev` with the Cloudflare runtime.
 
+### Development with Remote D1
+
+To test with remote D1 database:
+
+```bash
+npm run dev:remote
+```
+
 ## Deployment
 
 ### Deploy to Cloudflare Workers
@@ -89,17 +109,20 @@ Set these in the Cloudflare dashboard (Workers & Pages > Your Project > Settings
 - `SIWE_DOMAIN`: Your production domain
 - `SIWE_SECRET`: Your production secret (different from dev)
 - `NEXT_PUBLIC_APP_URL`: Your production URL
+- `NEXT_PUBLIC_WORKER_URL`: Your search service worker URL
+- `RPC_URL`: Ethereum RPC endpoint (server-side only)
 
 The D1 database binding is configured in `wrangler.toml` and will be automatically available.
 
 ## Architecture
 
-- **Next.js 16** with App Router
+- **Next.js 15** with App Router
 - **OpenNext Cloudflare Adapter** for Cloudflare Workers deployment
-- **Edge Runtime** for all API routes
+- **Edge Runtime** for API routes
 - **D1 Database** for data storage (shared with search-service)
-- **SIWE** for wallet authentication
+- **SIWE** for wallet authentication (admin section)
 - **wagmi + viem** for Ethereum wallet connection
+- **agent0-sdk** for agent details and blockchain interaction
 - **shadcn/ui** for UI components
 - **Tailwind CSS** for styling
 
@@ -110,16 +133,20 @@ The D1 database binding is configured in `wrangler.toml` and will be automatical
 - JWT tokens stored in httpOnly cookies
 - Whitelist check on every authenticated request
 - SQL injection protection via parameterized queries
+- `/dashboard/*` routes protected by middleware
 
 ## Project Structure
 
 ```
-admin-dashboard/
+agent-search-dashboard/
 ├── app/
-│   ├── api/          # API routes (edge runtime)
-│   ├── dashboard/    # Dashboard pages
-│   └── page.tsx      # Login page
-├── components/       # React components
-├── lib/              # Utilities and types
-└── middleware.ts     # Route protection
+│   ├── api/              # API routes (edge runtime)
+│   │   ├── agents/       # Agent details API
+│   │   └── admin/        # Admin APIs
+│   ├── agents/           # Agent detail pages (public)
+│   ├── dashboard/        # Admin pages (protected)
+│   └── page.tsx          # Search homepage (public)
+├── components/           # React components
+├── lib/                  # Utilities and types
+└── middleware.ts         # Route protection
 ```

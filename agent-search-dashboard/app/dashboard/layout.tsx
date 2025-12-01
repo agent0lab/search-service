@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, FileText, Database, Users, LogOut } from 'lucide-react';
+import { LayoutDashboard, FileText, Database, Users, LogOut, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function DashboardLayout({
@@ -37,6 +37,7 @@ export default function DashboardLayout({
   };
 
   const navItems = [
+    { href: '/', label: 'Search', icon: Search, external: true },
     { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
     { href: '/dashboard/search-logs', label: 'Search Logs', icon: FileText },
     { href: '/dashboard/indexing-logs', label: 'Indexing Logs', icon: Database },
@@ -48,7 +49,13 @@ export default function DashboardLayout({
       <div className="border-b bg-white dark:bg-slate-800">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+            <div className="flex items-center gap-4">
+              <Link href="/" className="text-2xl font-bold hover:opacity-80">
+                Agent Search
+              </Link>
+              <span className="text-muted-foreground">/</span>
+              <h1 className="text-2xl font-bold">Admin</h1>
+            </div>
             <div className="flex items-center gap-4">
               {address && (
                 <span className="text-sm text-muted-foreground font-mono">
@@ -71,6 +78,21 @@ export default function DashboardLayout({
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.href;
+                if (item.external) {
+                  return (
+                    <a
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        'flex items-center gap-3 px-4 py-2 rounded-lg transition-colors',
+                        'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                      )}
+                    >
+                      <Icon className="h-5 w-5" />
+                      {item.label}
+                    </a>
+                  );
+                }
                 return (
                   <Link
                     key={item.href}
