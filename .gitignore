@@ -36,10 +36,10 @@ yarn-error.log*
 # Cache
 .cache/
 
-# Admin Dashboard
-admin-dashboard/.next/
-admin-dashboard/.open-next/
-admin-dashboard/out/
-admin-dashboard/node_modules/
-admin-dashboard/.env.local
+# Agent Search Dashboard
+agent-search-dashboard/.next/
+agent-search-dashboard/.open-next/
+agent-search-dashboard/out/
+agent-search-dashboard/node_modules/
+agent-search-dashboard/.env.local
 

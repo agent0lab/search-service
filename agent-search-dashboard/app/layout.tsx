@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Admin Dashboard - Search Service",
-  description: "Admin dashboard for semantic search service",
+  title: "Agent Search Dashboard",
+  description: "Search and explore ERC-8004 agents using semantic search",
 };
 
 export default function RootLayout({

@@ -99,6 +99,36 @@ export interface SyncLogEventEntry {
   errorMessage?: string;
 }
 
+// Search types (matching worker API)
+export interface SemanticSearchFilters {
+  capabilities?: string[];
+  defaultInputMode?: string;
+  defaultOutputMode?: string;
+  minScore?: number;
+  chainId?: number | { $in: number[] }; // Support single chain or multiple chains
+  tags?: string[];
+  [key: string]: unknown;
+}
+
+export interface SemanticSearchResult {
+  rank: number;
+  vectorId: string;
+  agentId: string;
+  chainId: number;
+  name?: string;
+  description?: string;
+  score: number;
+  metadata?: Record<string, unknown>;
+  matchReasons?: string[];
+}
+
+export interface SemanticSearchResponse {
+  query: string;
+  results: SemanticSearchResult[];
+  total: number;
+  timestamp: string;
+}
+
 // Session types
 export interface Session {
   address: string;

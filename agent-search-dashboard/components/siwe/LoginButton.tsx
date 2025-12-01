@@ -65,9 +65,9 @@ export function LoginButton() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle>Sign In</CardTitle>
+        <CardTitle>Admin Login</CardTitle>
         <CardDescription>
-          Connect your wallet and sign in with Ethereum to access the admin dashboard
+          Connect your wallet and sign in with Ethereum to access the admin section
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
