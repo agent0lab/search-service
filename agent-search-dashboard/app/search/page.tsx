@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, Suspense } from 'react';
+import { useState, useCallback, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Search, Filter, X, ChevronDown, ChevronUp, LayoutGrid, Table as TableIcon, Info, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -53,6 +53,7 @@ function SearchContent() {
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
   const [hasInitialized, setHasInitialized] = useState(false);
   const [agentURIsLoaded, setAgentURIsLoaded] = useState(false);
+  const lastSearchedQueryRef = useRef<string>('');
   
   // Filter state - using arrays for multiple selection
   const [selectedChainIds, setSelectedChainIds] = useState<number[]>([]);
@@ -98,6 +99,10 @@ function SearchContent() {
       try {
         const state: StoredSearchState = JSON.parse(storedState);
         const restoreQuery = urlQuery || state.query;
+        
+        // If URL has a different query than stored state, clear results and trigger search
+        const urlQueryDiffers = urlQuery && urlQuery !== state.query;
+        
         if (restoreQuery) {
           setQuery(restoreQuery);
           // Only restore chainIds if not set from URL
@@ -112,88 +117,101 @@ function SearchContent() {
           setCustomCapabilities(state.customCapabilities || '');
           setTopK(state.topK || 10);
           
-          // Enrich restored results with agentURI
-          if (state.results && state.results.length > 0) {
-            (async () => {
-              // Use batch endpoint for faster loading
-              try {
-                const batchResponse = await fetch('/api/agents/batch', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    agentIds: state.results.map(r => r.agentId),
-                  }),
-                });
+          // If URL query differs, don't restore old results or set ref - will trigger search in next useEffect
+          if (!urlQueryDiffers) {
+            // Update ref to track the query we're restoring (only when query matches)
+            lastSearchedQueryRef.current = restoreQuery;
+            // Enrich restored results with agentURI
+            if (state.results && state.results.length > 0) {
+              (async () => {
+                // Use batch endpoint for faster loading
+                try {
+                  const batchResponse = await fetch('/api/agents/batch', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      agentIds: state.results.map(r => r.agentId),
+                    }),
+                  });
 
-                if (batchResponse.ok) {
-                  const batchData = await batchResponse.json() as { agents: Array<{ agentId: string; agentURI?: string; image?: string }> };
-                  
-                  const imagesMap: Record<string, string> = {};
-                  const agentURIMap: Record<string, string> = {};
-                  
-                  batchData.agents.forEach((agent) => {
-                    if (agent.image) {
-                      imagesMap[agent.agentId] = agent.image;
-                    }
-                    if (agent.agentURI && typeof agent.agentURI === 'string' && agent.agentURI.trim() !== '') {
-                      agentURIMap[agent.agentId] = agent.agentURI;
-                    }
-                  });
-                  
-                  setAgentImages(imagesMap);
-                  
-                  // Enrich results with agentURI
-                  const enrichedResults = state.results.map(result => {
-                    const fetchedURI = agentURIMap[result.agentId];
-                    const existingURI = result.metadata?.agentURI;
-                    let finalURI: string | undefined = undefined;
+                  if (batchResponse.ok) {
+                    const batchData = await batchResponse.json() as { agents: Array<{ agentId: string; agentURI?: string; image?: string }> };
                     
-                    if (fetchedURI && typeof fetchedURI === 'string' && fetchedURI.trim() !== '') {
-                      finalURI = fetchedURI;
-                    } else if (existingURI && typeof existingURI === 'string' && existingURI.trim() !== '') {
-                      finalURI = existingURI;
-                    }
+                    const imagesMap: Record<string, string> = {};
+                    const agentURIMap: Record<string, string> = {};
                     
-                    const metadata = result.metadata || {};
-                    return {
-                      ...result,
-                      metadata: {
-                        ...metadata,
-                        agentURI: finalURI,
-                      },
-                    };
-                  });
-                  
-                  setResults(enrichedResults);
-                  setAgentURIsLoaded(true);
-                } else {
+                    batchData.agents.forEach((agent) => {
+                      if (agent.image) {
+                        imagesMap[agent.agentId] = agent.image;
+                      }
+                      if (agent.agentURI && typeof agent.agentURI === 'string' && agent.agentURI.trim() !== '') {
+                        agentURIMap[agent.agentId] = agent.agentURI;
+                      }
+                    });
+                    
+                    setAgentImages(imagesMap);
+                    
+                    // Enrich results with agentURI
+                    const enrichedResults = state.results.map(result => {
+                      const fetchedURI = agentURIMap[result.agentId];
+                      const existingURI = result.metadata?.agentURI;
+                      let finalURI: string | undefined = undefined;
+                      
+                      if (fetchedURI && typeof fetchedURI === 'string' && fetchedURI.trim() !== '') {
+                        finalURI = fetchedURI;
+                      } else if (existingURI && typeof existingURI === 'string' && existingURI.trim() !== '') {
+                        finalURI = existingURI;
+                      }
+                      
+                      const metadata = result.metadata || {};
+                      return {
+                        ...result,
+                        metadata: {
+                          ...metadata,
+                          agentURI: finalURI,
+                        },
+                      };
+                    });
+                    
+                    setResults(enrichedResults);
+                    setAgentURIsLoaded(true);
+                  } else {
+                    setResults(state.results || []);
+                    setAgentURIsLoaded(true);
+                  }
+                } catch (error) {
+                  console.error('Failed to enrich restored results:', error);
                   setResults(state.results || []);
                   setAgentURIsLoaded(true);
                 }
-              } catch (error) {
-                console.error('Failed to enrich restored results:', error);
-                setResults(state.results || []);
-                setAgentURIsLoaded(true);
-              }
-            })();
+              })();
+            } else {
+              setResults(state.results || []);
+              setAgentURIsLoaded(true);
+            }
           } else {
-            setResults(state.results || []);
-            setAgentURIsLoaded(true);
+            // URL query differs - clear results and set loading, will trigger search in next useEffect
+            setResults([]);
+            setLoading(true);
+            setError(null);
+            setAgentURIsLoaded(false);
           }
         }
       } catch (e) {
         console.error('Failed to restore search state:', e);
       }
     } else if (urlQuery) {
+      // New query from URL with no stored state - set loading, don't set ref yet, let auto-trigger handle it
       setQuery(urlQuery);
+      setLoading(true);
+      setError(null);
     }
     
     setHasInitialized(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
-
 
   // Save state to sessionStorage whenever it changes
   useEffect(() => {
@@ -289,6 +307,9 @@ function SearchContent() {
         filters: Object.keys(filters).length > 0 ? filters : undefined,
       });
 
+      // Update ref to track the query we just searched
+      lastSearchedQueryRef.current = query;
+
       // Show results immediately for fast UI
       setResults(response.results);
       setAgentURIsLoaded(false); // Reset flag when new search starts
@@ -372,6 +393,27 @@ function SearchContent() {
     }
   }, [query, topK, selectedChainIds, selectedCapabilities, selectedInputModes, selectedOutputModes, selectedTags, customTags, customCapabilities, router, searchParams]);
 
+  // Auto-trigger search when URL query changes after initialization
+  useEffect(() => {
+    if (!hasInitialized) return;
+    
+    const urlQuery = searchParams.get('q');
+    
+    // If URL has a query and it's different from what we last searched, trigger search
+    if (urlQuery && urlQuery.trim() && urlQuery !== lastSearchedQueryRef.current) {
+      setQuery(urlQuery);
+      // Set loading immediately to show loading state instead of "no results"
+      setLoading(true);
+      setError(null);
+      // Use a ref to track that we're about to search this query
+      lastSearchedQueryRef.current = urlQuery;
+      // Small delay to ensure state is updated before search
+      const timer = setTimeout(() => {
+        handleSearch();
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams, hasInitialized, handleSearch]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
