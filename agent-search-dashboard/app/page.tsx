@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Search, Filter, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, Filter, X, ChevronDown, ChevronUp, LayoutGrid, Table as TableIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,6 +14,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { searchAgents } from '@/lib/search-client';
 import type { SemanticSearchResult, SemanticSearchFilters } from '@/lib/types';
 import Link from 'next/link';
+import { StatsDashboard } from '@/components/StatsDashboard';
+import { RecentAgents } from '@/components/RecentAgents';
+import { AgentCard } from '@/components/agent/AgentCard';
 
 const STORAGE_KEY = 'agent-search-state';
 
@@ -43,6 +46,7 @@ function HomeContent() {
   const [topK, setTopK] = useState(10);
   const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({});
   const [agentImages, setAgentImages] = useState<Record<string, string>>({});
+  const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
   
   // Filter state - using arrays for multiple selection
   const [selectedChainIds, setSelectedChainIds] = useState<number[]>([]);
@@ -66,6 +70,19 @@ function HomeContent() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Restore view mode from localStorage
+  useEffect(() => {
+    const savedViewMode = localStorage.getItem('agent-view-mode') as 'card' | 'table' | null;
+    if (savedViewMode === 'card' || savedViewMode === 'table') {
+      setViewMode(savedViewMode);
+    }
+  }, []);
+
+  // Save view mode to localStorage
+  useEffect(() => {
+    localStorage.setItem('agent-view-mode', viewMode);
+  }, [viewMode]);
 
   // Restore state from URL params or sessionStorage on mount
   useEffect(() => {
@@ -295,10 +312,17 @@ function HomeContent() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       {/* Header */}
-      <header className="border-b bg-white dark:bg-slate-800 sticky top-0 z-10">
+      <header className="border-b bg-white dark:bg-slate-800 sticky top-0 z-10 shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">Agent Search Dashboard</h1>
+            <div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                ERC-8004 Agent Explorer
+              </h1>
+              <p className="text-xs text-muted-foreground mt-1">
+                Discover and explore AI agents on the blockchain
+              </p>
+            </div>
             <div className="flex items-center gap-4">
               {isAuthenticated ? (
                 <Link href="/dashboard">
@@ -319,20 +343,7 @@ function HomeContent() {
       </header>
 
       <div className="container mx-auto px-4 py-8">
-        {/* Header Section */}
-        <div className="mb-6">
-          <h2 className="text-3xl font-bold mb-2">Search Agents</h2>
-          <p className="text-muted-foreground mb-4">
-            Browse and discover AI agents registered on the ERC-8004 protocol
-          </p>
-          {results.length > 0 && (
-            <p className="text-sm text-muted-foreground">
-              Found {results.length} result{results.length !== 1 ? 's' : ''}
-            </p>
-          )}
-        </div>
-
-        {/* Search Bar */}
+        {/* Search Bar - At the top */}
         <div className="mb-6">
           <div className="flex gap-3 items-center">
             <div className="flex-1 relative">
@@ -682,6 +693,13 @@ function HomeContent() {
           )}
         </div>
 
+        {/* Statistics Dashboard */}
+        <StatsDashboard />
+
+        {/* Recent Agents Section - Only show when no search query */}
+        {!query && <RecentAgents />}
+
+
         {/* Error Message */}
         {error && (
           <div className="mb-4">
@@ -693,136 +711,217 @@ function HomeContent() {
           </div>
         )}
 
-        {/* Results Table */}
+        {/* Results Section */}
         {results.length > 0 && (
-          <div className="overflow-x-auto">
-            <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[45%]">Agent</TableHead>
-                    <TableHead className="w-[12%]">ID</TableHead>
-                    <TableHead className="w-[13%]">Chain</TableHead>
-                    <TableHead className="w-[10%]">Score</TableHead>
-                    <TableHead className="w-[20%]">Capabilities</TableHead>
-                  </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {results.map((result) => {
-                      const capabilities = result.metadata?.capabilities;
-                      const capabilitiesArray = Array.isArray(capabilities) ? (capabilities as string[]) : [];
-                      const agentUrl = `/agents/${encodeURIComponent(result.agentId)}`;
-                      const description = result.description || 'No description available';
-                      const maxDescriptionLength = 80;
-                      const truncatedDescription = description.length > maxDescriptionLength 
-                        ? `${description.slice(0, maxDescriptionLength)}...` 
-                        : description;
-                      
-                      return (
-                      <TableRow 
-                        key={result.vectorId} 
-                        className="hover:bg-muted/50 cursor-pointer"
-                        onClick={() => {
-                          // Save current state before navigating
-                          const state: StoredSearchState = {
-                            query,
-                            results,
-                            selectedChainIds,
-                            selectedCapabilities,
-                            selectedInputModes,
-                            selectedOutputModes,
-                            selectedTags,
-                            customTags,
-                            customCapabilities,
-                            topK,
-                          };
-                          sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-                          window.location.href = agentUrl;
-                        }}
-                      >
-                          <TableCell className="w-[40%]">
-                            <div className="flex items-start gap-2">
-                              {(() => {
-                                const imageUrl = agentImages[result.agentId] || (result.metadata?.image as string | undefined);
-                                if (imageUrl) {
-                                  return (
-                                    <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden border bg-slate-200 dark:bg-slate-700">
-                                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                                      <img
-                                        src={imageUrl}
-                                        alt={result.name || 'Agent'}
-                                        className="w-full h-full object-cover"
-                                        onError={(e) => {
-                                          // Fallback to initial if image fails
-                                          const target = e.target as HTMLImageElement;
-                                          target.style.display = 'none';
-                                          const parent = target.parentElement;
-                                          if (parent) {
-                                            parent.innerHTML = `<span class="text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center justify-center w-full h-full">${(result.name || 'A')[0].toUpperCase()}</span>`;
-                                          }
-                                        }}
-                                      />
-                                    </div>
-                                  );
-                                }
-                                return (
-                                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
-                                    <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                                      {(result.name || 'A')[0].toUpperCase()}
-                                    </span>
-                                  </div>
-                                );
-                              })()}
-                              <div className="flex-1 min-w-0">
-                                <div className="font-semibold text-sm text-foreground mb-0.5 truncate">
-                                  {result.name || `Agent ${formatAgentId(result.agentId)}`}
-                                </div>
-                                <div 
-                                  className="text-xs text-muted-foreground line-clamp-1 break-words"
-                                  title={description}
-                                >
-                                  {truncatedDescription}
-                                </div>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="w-[10%]">
-                            <span className="font-mono text-xs">{formatAgentId(result.agentId)}</span>
-                          </TableCell>
-                          <TableCell className="w-[12%]">
-                            <Badge variant="outline" className="font-mono text-xs">
-                              {getChainName(result.chainId).split(' ')[0]}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="w-[10%]">
-                            <span className="text-xs font-medium">{(result.score * 100).toFixed(0)}%</span>
-                          </TableCell>
-                          <TableCell className="w-[20%]">
-                            {capabilitiesArray.length > 0 ? (
-                              <div className="flex flex-wrap gap-1">
-                                {capabilitiesArray.slice(0, 2).map((cap, idx) => (
-                                  <Badge key={idx} variant="secondary" className="text-xs px-1.5 py-0">
-                                    {cap}
-                                  </Badge>
-                                ))}
-                                {capabilitiesArray.length > 2 && (
-                                  <Badge variant="secondary" className="text-xs px-1.5 py-0">
-                                    +{capabilitiesArray.length - 2}
-                                  </Badge>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground text-xs">-</span>
-                            )}
-                          </TableCell>
+          <div>
+            {/* Results Header with View Toggle */}
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-bold">
+                  Search Results
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Found {results.length} result{results.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={viewMode === 'card' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('card')}
+                >
+                  <LayoutGrid className="h-4 w-4 mr-2" />
+                  Card
+                </Button>
+                <Button
+                  variant={viewMode === 'table' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('table')}
+                >
+                  <TableIcon className="h-4 w-4 mr-2" />
+                  Table
+                </Button>
+              </div>
+            </div>
+
+            {/* Card View */}
+            {viewMode === 'card' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {results.map((result) => (
+                  <AgentCard
+                    key={result.vectorId}
+                    result={result}
+                    agentImage={agentImages[result.agentId]}
+                    getChainName={getChainName}
+                    formatAgentId={formatAgentId}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Table View */}
+            {viewMode === 'table' && (
+              <div className="overflow-x-auto">
+                <Card>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[35%]">Agent</TableHead>
+                          <TableHead className="w-[10%]">ID</TableHead>
+                          <TableHead className="w-[10%]">Chain</TableHead>
+                          <TableHead className="w-[10%]">Score</TableHead>
+                          <TableHead className="w-[15%]">Capabilities</TableHead>
+                          <TableHead className="w-[10%]">Trust Models</TableHead>
+                          <TableHead className="w-[10%]">Protocols</TableHead>
                         </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                      </TableHeader>
+                      <TableBody>
+                        {results.map((result) => {
+                          const capabilities = result.metadata?.capabilities;
+                          const capabilitiesArray = Array.isArray(capabilities) ? (capabilities as string[]) : [];
+                          const trustModels = result.metadata?.tags || [];
+                          const trustModelsArray = Array.isArray(trustModels) ? (trustModels as string[]) : [];
+                          const mcp = result.metadata?.mcp as boolean | undefined;
+                          const a2a = result.metadata?.a2a as boolean | undefined;
+                          const agentUrl = `/agents/${encodeURIComponent(result.agentId)}`;
+                          const description = result.description || 'No description available';
+                          const maxDescriptionLength = 80;
+                          const truncatedDescription = description.length > maxDescriptionLength 
+                            ? `${description.slice(0, maxDescriptionLength)}...` 
+                            : description;
+                          
+                          return (
+                            <TableRow 
+                              key={result.vectorId} 
+                              className="hover:bg-muted/50 cursor-pointer"
+                              onClick={() => {
+                                // Save current state before navigating
+                                const state: StoredSearchState = {
+                                  query,
+                                  results,
+                                  selectedChainIds,
+                                  selectedCapabilities,
+                                  selectedInputModes,
+                                  selectedOutputModes,
+                                  selectedTags,
+                                  customTags,
+                                  customCapabilities,
+                                  topK,
+                                };
+                                sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+                                window.location.href = agentUrl;
+                              }}
+                            >
+                              <TableCell className="w-[35%]">
+                                <div className="flex items-start gap-2">
+                                  {(() => {
+                                    const imageUrl = agentImages[result.agentId] || (result.metadata?.image as string | undefined);
+                                    if (imageUrl) {
+                                      return (
+                                        <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden border bg-slate-200 dark:bg-slate-700">
+                                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                                          <img
+                                            src={imageUrl}
+                                            alt={result.name || 'Agent'}
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                              // Fallback to initial if image fails
+                                              const target = e.target as HTMLImageElement;
+                                              target.style.display = 'none';
+                                              const parent = target.parentElement;
+                                              if (parent) {
+                                                parent.innerHTML = `<span class="text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center justify-center w-full h-full">${(result.name || 'A')[0].toUpperCase()}</span>`;
+                                              }
+                                            }}
+                                          />
+                                        </div>
+                                      );
+                                    }
+                                    return (
+                                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+                                        <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                                          {(result.name || 'A')[0].toUpperCase()}
+                                        </span>
+                                      </div>
+                                    );
+                                  })()}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-semibold text-sm text-foreground mb-0.5 truncate">
+                                      {result.name || `Agent ${formatAgentId(result.agentId)}`}
+                                    </div>
+                                    <div 
+                                      className="text-xs text-muted-foreground line-clamp-1 break-words"
+                                      title={description}
+                                    >
+                                      {truncatedDescription}
+                                    </div>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell className="w-[10%]">
+                                <span className="font-mono text-xs">{formatAgentId(result.agentId)}</span>
+                              </TableCell>
+                              <TableCell className="w-[10%]">
+                                <Badge variant="outline" className="font-mono text-xs">
+                                  {getChainName(result.chainId).split(' ')[0]}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="w-[10%]">
+                                <span className="text-xs font-medium">{(result.score * 100).toFixed(0)}%</span>
+                              </TableCell>
+                              <TableCell className="w-[15%]">
+                                {capabilitiesArray.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {capabilitiesArray.slice(0, 2).map((cap, idx) => (
+                                      <Badge key={idx} variant="secondary" className="text-xs px-1.5 py-0">
+                                        {cap}
+                                      </Badge>
+                                    ))}
+                                    {capabilitiesArray.length > 2 && (
+                                      <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                                        +{capabilitiesArray.length - 2}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground text-xs">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="w-[10%]">
+                                {trustModelsArray.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {trustModelsArray.slice(0, 1).map((trust, idx) => (
+                                      <Badge key={idx} variant="outline" className="text-xs px-1.5 py-0">
+                                        {trust.split('-')[0]}
+                                      </Badge>
+                                    ))}
+                                    {trustModelsArray.length > 1 && (
+                                      <Badge variant="outline" className="text-xs px-1.5 py-0">
+                                        +{trustModelsArray.length - 1}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground text-xs">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="w-[10%]">
+                                <div className="flex items-center gap-1">
+                                  {mcp && <Badge variant="secondary" className="text-xs">MCP</Badge>}
+                                  {a2a && <Badge variant="secondary" className="text-xs">A2A</Badge>}
+                                  {!mcp && !a2a && <span className="text-muted-foreground text-xs">-</span>}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
         )}
 
@@ -834,13 +933,7 @@ function HomeContent() {
         )}
 
         {/* Initial State */}
-        {!loading && results.length === 0 && !query && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">
-              Enter a search query above to find agents using semantic search.
-            </p>
-          </div>
-        )}
+        {!loading && results.length === 0 && !query}
       </div>
     </div>
   );
