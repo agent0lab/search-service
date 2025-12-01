@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, Activity, Network, TrendingUp, Code, Users2 } from 'lucide-react';
+import { Users, TrendingUp, Network, Globe } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface StatsData {
   totalAgents: number;
@@ -14,6 +16,7 @@ interface StatsData {
   recentRegistrations7d: number;
   mcpEnabled: number;
   a2aEnabled: number;
+  growthRate7d: number;
 }
 
 const CHAIN_NAMES: Record<number, string> = {
@@ -22,7 +25,12 @@ const CHAIN_NAMES: Record<number, string> = {
   80002: 'Polygon Amoy',
 };
 
-export function StatsDashboard() {
+interface StatsDashboardProps {
+  activeChainId?: number;
+}
+
+export function StatsDashboard({ activeChainId }: StatsDashboardProps = {}) {
+  const router = useRouter();
   const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -90,10 +98,19 @@ export function StatsDashboard() {
     }))
     .sort((a, b) => b.count - a.count);
 
+  const handleNetworkClick = (chainId: number) => {
+    // If clicking the active chain, clear the filter, otherwise set it
+    if (activeChainId === chainId) {
+      router.push('/');
+    } else {
+      router.push(`/?chainId=${chainId}`);
+    }
+  };
+
   return (
     <div className="mb-8 space-y-6">
       {/* Main Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card className="hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 hover:-translate-y-1 border-2 hover:border-primary/30 cursor-pointer group bg-slate-900/60 backdrop-blur-sm border-slate-800/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium group-hover:text-primary transition-colors">Total Agents</CardTitle>
@@ -111,17 +128,15 @@ export function StatsDashboard() {
 
         <Card className="hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 hover:-translate-y-1 border-2 hover:border-primary/30 cursor-pointer group bg-slate-900/60 backdrop-blur-sm border-slate-800/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium group-hover:text-primary transition-colors">Active Agents</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors group-hover:scale-110" />
+            <CardTitle className="text-sm font-medium group-hover:text-primary transition-colors">Growth Rate (7d)</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors group-hover:scale-110" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent group-hover:from-primary group-hover:to-primary/70 transition-all">
-              {stats.activeAgents.toLocaleString()}
+              {stats.growthRate7d.toFixed(1)}%
             </div>
             <p className="text-xs text-muted-foreground mt-1 group-hover:text-foreground/80 transition-colors">
-              {stats.totalAgents > 0
-                ? `${Math.round((stats.activeAgents / stats.totalAgents) * 100)}% of total`
-                : '0% of total'}
+              {stats.recentRegistrations7d} new agents this week
             </p>
           </CardContent>
         </Card>
@@ -129,7 +144,7 @@ export function StatsDashboard() {
         <Card className="hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 hover:-translate-y-1 border-2 hover:border-primary/30 cursor-pointer group bg-slate-900/60 backdrop-blur-sm border-slate-800/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium group-hover:text-primary transition-colors">Recent (24h)</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors group-hover:scale-110" />
+            <Network className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors group-hover:scale-110" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent group-hover:from-primary group-hover:to-primary/70 transition-all">
@@ -138,31 +153,6 @@ export function StatsDashboard() {
             <p className="text-xs text-muted-foreground mt-1 group-hover:text-foreground/80 transition-colors">
               {stats.recentRegistrations7d} in last 7 days
             </p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 hover:-translate-y-1 border-2 hover:border-primary/30 cursor-pointer group bg-slate-900/60 backdrop-blur-sm border-slate-800/50">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium group-hover:text-primary transition-colors">Protocol Support</CardTitle>
-            <Network className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors group-hover:scale-110" />
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-4">
-              <div>
-                <div className="text-xl font-bold">{stats.mcpEnabled.toLocaleString()}</div>
-                <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                  <Code className="h-3 w-3" />
-                  MCP
-                </div>
-              </div>
-              <div>
-                <div className="text-xl font-bold">{stats.a2aEnabled.toLocaleString()}</div>
-                <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                  <Users2 className="h-3 w-3" />
-                  A2A
-                </div>
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>
@@ -175,11 +165,24 @@ export function StatsDashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              {chainBreakdown.map((chain) => (
-                <Badge key={chain.chainId} variant="outline" className="text-sm py-1 px-3">
-                  {chain.name}: {chain.count.toLocaleString()}
-                </Badge>
-              ))}
+              {chainBreakdown.map((chain) => {
+                const isActive = activeChainId === chain.chainId;
+                return (
+                  <Badge 
+                    key={chain.chainId} 
+                    variant={isActive ? "default" : "outline"}
+                    className={cn(
+                      "text-sm py-1 px-3 cursor-pointer transition-colors",
+                      isActive 
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90" 
+                        : "hover:bg-primary/10 hover:border-primary/50"
+                    )}
+                    onClick={() => handleNetworkClick(chain.chainId)}
+                  >
+                    {chain.name}: {chain.count.toLocaleString()}
+                  </Badge>
+                );
+              })}
             </div>
           </CardContent>
         </Card>

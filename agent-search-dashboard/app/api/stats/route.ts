@@ -27,6 +27,7 @@ interface StatsResponse {
   recentRegistrations7d: number;
   mcpEnabled: number;
   a2aEnabled: number;
+  growthRate7d: number; // Percentage growth over 7 days
 }
 
 async function querySubgraph(subgraphUrl: string, query: string, variables: Record<string, unknown>): Promise<unknown> {
@@ -75,6 +76,7 @@ export async function GET(request: NextRequest) {
       recentRegistrations7d: 0,
       mcpEnabled: 0,
       a2aEnabled: 0,
+      growthRate7d: 0,
     };
 
     const now = Math.floor(Date.now() / 1000);
@@ -164,6 +166,16 @@ export async function GET(request: NextRequest) {
       stats.mcpEnabled += result.mcp;
       stats.a2aEnabled += result.a2a;
     });
+
+    // Calculate growth rate: (recent7d / (totalAgents - recent7d)) * 100
+    // This gives us the percentage of new agents in the last 7 days
+    const agentsBefore7d = stats.totalAgents - stats.recentRegistrations7d;
+    if (agentsBefore7d > 0) {
+      stats.growthRate7d = (stats.recentRegistrations7d / agentsBefore7d) * 100;
+    } else if (stats.totalAgents > 0) {
+      // If all agents are new, growth rate is 100%
+      stats.growthRate7d = 100;
+    }
 
     return NextResponse.json(stats);
   } catch (error) {

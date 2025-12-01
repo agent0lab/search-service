@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { CheckCircle2, XCircle, Code, Users, Copy } from 'lucide-react';
+import { CheckCircle2, XCircle, Code, Users, Copy, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { SemanticSearchResult } from '@/lib/types';
 import { useState } from 'react';
@@ -16,9 +16,10 @@ interface AgentCardProps {
   onImageError?: () => void;
   getChainName: (chainId: number) => string;
   formatAgentId: (agentId: string) => string;
+  agentURIsLoaded?: boolean; // Only show warnings after URIs are loaded
 }
 
-export function AgentCard({ result, agentImage, getChainName, formatAgentId }: AgentCardProps) {
+export function AgentCard({ result, agentImage, getChainName, formatAgentId, agentURIsLoaded = false }: AgentCardProps) {
   const [imageError, setImageError] = useState(false);
   const [copied, setCopied] = useState(false);
   
@@ -39,6 +40,30 @@ export function AgentCard({ result, agentImage, getChainName, formatAgentId }: A
     : description;
   
   const imageUrl = agentImage || (result.metadata?.image as string | undefined);
+  
+  // Check for missing data - only warn if actually missing AND URIs have been loaded
+  const warnings: string[] = [];
+  const agentURI = result.metadata?.agentURI;
+  
+  // Only check for agentURI warnings if URIs have been loaded (prevents false warnings)
+  if (agentURIsLoaded) {
+    // Only warn if agentURI is missing, null, undefined, or empty string
+    // Check if it's a valid non-empty string
+    const hasValidURI = agentURI && 
+      typeof agentURI === 'string' && 
+      agentURI.trim() !== '' &&
+      agentURI !== 'null' &&
+      agentURI !== 'undefined';
+    
+    if (!hasValidURI) {
+      warnings.push('Agent URI');
+    }
+  }
+  // Only warn if description is missing or empty
+  if (!result.description || (typeof result.description === 'string' && result.description.trim() === '')) {
+    warnings.push('Description');
+  }
+  const hasMissingData = warnings.length > 0;
   
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -87,9 +112,21 @@ export function AgentCard({ result, agentImage, getChainName, formatAgentId }: A
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-lg mb-1 truncate group-hover:text-primary transition-all duration-300 group-hover:scale-105 origin-left">
-                {result.name || `Agent ${formatAgentId(result.agentId)}`}
-              </h3>
+              <div className="flex items-center gap-1.5 mb-1">
+                <h3 className="font-semibold text-lg truncate group-hover:text-primary transition-all duration-300 group-hover:scale-105 origin-left flex-1">
+                  {result.name || `Agent ${formatAgentId(result.agentId)}`}
+                </h3>
+                {hasMissingData && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <AlertTriangle className="h-4 w-4 text-yellow-500 flex-shrink-0 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">Missing: {warnings.join(', ')}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="outline" className={`text-xs font-mono ${getChainColor(result.chainId)}`}>
                   {getChainName(result.chainId).split(' ')[0]}

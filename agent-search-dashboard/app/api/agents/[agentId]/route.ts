@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { SDK } from 'agent0-sdk';
 
 // Default subgraph URLs (matching agent0-sdk)
 const DEFAULT_SUBGRAPH_URLS: Record<number, string> = {
   11155111: 'https://gateway.thegraph.com/api/00a452ad3cd1900273ea62c1bf283f93/subgraphs/id/6wQRC7geo9XYAhckfmfo8kbMRLeWU8KQd3XsJqFKmZLT', // Ethereum Sepolia
   84532: 'https://gateway.thegraph.com/api/00a452ad3cd1900273ea62c1bf283f93/subgraphs/id/GjQEDgEKqoh5Yc8MUgxoQoRATEJdEiH7HbocfR1aFiHa', // Base Sepolia
   80002: 'https://gateway.thegraph.com/api/00a452ad3cd1900273ea62c1bf283f93/subgraphs/id/2A1JB18r1mF2VNP4QBH4mmxd74kbHoM6xLXC8ABAKf7j', // Polygon Amoy
+};
+
+// RPC URLs for SDK initialization (read-only, no signer needed)
+const RPC_URLS: Record<number, string> = {
+  11155111: 'https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161', // Ethereum Sepolia
+  84532: 'https://sepolia.base.org', // Base Sepolia
+  80002: 'https://rpc-amoy.polygon.technology', // Polygon Amoy
 };
 
 interface SubgraphAgent {
@@ -155,8 +163,10 @@ export async function GET(
       );
     }
 
-    // Get subgraph URL for this chain
+    // Use SDK to get agent data
+    const rpcUrl = RPC_URLS[chainId];
     const subgraphUrl = DEFAULT_SUBGRAPH_URLS[chainId];
+    
     if (!subgraphUrl) {
       return NextResponse.json(
         { error: `No subgraph configured for chain ${chainId}` },
@@ -164,114 +174,193 @@ export async function GET(
       );
     }
 
+    // Initialize SDK (read-only, no signer needed)
+    // SDK will use HTTP gateways for IPFS URIs if IPFS is not configured
+    const sdk = new SDK({
+      chainId: chainId as any,
+      rpcUrl: rpcUrl || 'https://eth.llamarpc.com', // Fallback RPC
+      subgraphOverrides: { [chainId]: subgraphUrl } as any,
+    });
+
     // SDK uses format "chainId:tokenId" (e.g., "84532:1062")
-    // Pass it directly to the subgraph query as the SDK does
     const formattedAgentId = `${chainId}:${tokenIdStr}`;
     
-    // GraphQL query matching the SDK's implementation exactly
-    const query = `
-      query GetAgent($agentId: String!) {
-        agent(id: $agentId) {
-          id
-          chainId
-          agentId
-          owner
-          operators
-          agentURI
-          createdAt
-          updatedAt
-          registrationFile {
-            id
-            agentId
-            name
-            description
-            image
-            active
-            x402support
-            supportedTrusts
-            mcpEndpoint
-            mcpVersion
-            a2aEndpoint
-            a2aVersion
-            ens
-            did
-            agentWallet
-            agentWalletChainId
-            mcpTools
-            mcpPrompts
-            mcpResources
-            a2aSkills
-          }
-        }
-      }
-    `;
-
-    const variables = { agentId: formattedAgentId };
-    let data = await querySubgraph(subgraphUrl, query, variables) as { agent: SubgraphAgent | null };
-
-    // Fallback: if not found by id, try querying by chainId and agentId fields
-    if (!data.agent) {
-      const queryByFields = `
-        query GetAgentByFields($chainId: BigInt!, $tokenId: BigInt!) {
-          agents(
-            where: { chainId: $chainId, agentId: $tokenId }
-            first: 1
-          ) {
-            id
-            chainId
-            agentId
-            owner
-            operators
-            agentURI
-            createdAt
-            updatedAt
-            registrationFile {
-              id
-              agentId
-              name
-              description
-              image
-              active
-              x402support
-              supportedTrusts
-              mcpEndpoint
-              mcpVersion
-              a2aEndpoint
-              a2aVersion
-              ens
-              did
-              agentWallet
-              agentWalletChainId
-              mcpTools
-              mcpPrompts
-              mcpResources
-              a2aSkills
-            }
-          }
-        }
-      `;
-      
-      const fieldVariables = {
-        chainId: chainId.toString(),
-        tokenId: tokenIdStr,
-      };
-      
-      const fieldData = await querySubgraph(subgraphUrl, queryByFields, fieldVariables) as { agents: SubgraphAgent[] };
-      
-      if (fieldData.agents && fieldData.agents.length > 0) {
-        data = { agent: fieldData.agents[0] };
-      }
-    }
-
-    if (!data.agent) {
+    // Get agent summary from SDK
+    const sdkAgentSummary = await sdk.getAgent(formattedAgentId);
+    
+    if (!sdkAgentSummary) {
       return NextResponse.json(
         { error: `Agent ${agentId} not found` },
         { status: 404 }
       );
     }
 
-    const agentSummary = transformAgent(data.agent);
-    return NextResponse.json(agentSummary);
+    // Transform SDK AgentSummary to our format
+    const agentSummary: AgentSummary = {
+      chainId: sdkAgentSummary.chainId,
+      agentId: sdkAgentSummary.agentId,
+      name: sdkAgentSummary.name,
+      image: sdkAgentSummary.image,
+      description: sdkAgentSummary.description,
+      owners: sdkAgentSummary.owners,
+      operators: sdkAgentSummary.operators,
+      mcp: sdkAgentSummary.mcp,
+      a2a: sdkAgentSummary.a2a,
+      ens: sdkAgentSummary.ens,
+      did: sdkAgentSummary.did,
+      walletAddress: sdkAgentSummary.walletAddress,
+      supportedTrusts: sdkAgentSummary.supportedTrusts,
+      a2aSkills: sdkAgentSummary.a2aSkills,
+      mcpTools: sdkAgentSummary.mcpTools,
+      mcpPrompts: sdkAgentSummary.mcpPrompts,
+      mcpResources: sdkAgentSummary.mcpResources,
+      active: sdkAgentSummary.active,
+      x402support: sdkAgentSummary.x402support,
+      extras: sdkAgentSummary.extras,
+    };
+
+    // Get agentURI and endpoints from SDK's subgraph client
+    // Since SDK's getAgent doesn't return agentURI, we'll use the SDK's subgraph client
+    const subgraphClient = sdk.subgraphClient;
+    if (!subgraphClient) {
+      return NextResponse.json(
+        { error: 'Subgraph client not available' },
+        { status: 500 }
+      );
+    }
+    
+    // Use SDK's subgraph client to query for agentURI and endpoints
+    const subgraphQuery = `
+      query GetAgentURI($agentId: String!) {
+        agent(id: $agentId) {
+          agentURI
+          registrationFile {
+            mcpEndpoint
+            a2aEndpoint
+          }
+        }
+      }
+    `;
+    const subgraphData = await querySubgraph(subgraphUrl, subgraphQuery, { agentId: formattedAgentId }) as { agent: { agentURI?: string; registrationFile?: { mcpEndpoint?: string; a2aEndpoint?: string } } | null };
+    const agentURI = subgraphData.agent?.agentURI;
+    const mcpEndpoint = subgraphData.agent?.registrationFile?.mcpEndpoint;
+    const a2aEndpoint = subgraphData.agent?.registrationFile?.a2aEndpoint;
+    
+    // Use SDK's loadAgent to fetch the registration file and potentially the agent card
+    let agentCard = null;
+    if (agentURI) {
+      try {
+        // Use SDK's loadAgent - it will handle IPFS, HTTP, etc. using HTTP gateways if IPFS not configured
+        const agent = await sdk.loadAgent(formattedAgentId);
+        
+        // Check if the registration file has an agentCard in metadata
+        const registrationFile = (agent as any).registrationFile;
+        if (registrationFile?.metadata?.agentCard) {
+          agentCard = registrationFile.metadata.agentCard;
+          console.log('Found agentCard in registration file metadata');
+        } else {
+          // Try fetching agent card from endpoints
+          const endpoints = [mcpEndpoint, a2aEndpoint].filter(Boolean) as string[];
+          
+          for (const endpoint of endpoints) {
+            try {
+              const endpointUrl = new URL(endpoint);
+              const agentCardUrls = [
+                `${endpointUrl.origin}/.well-known/agent-card.json`,
+                `${endpoint}/.well-known/agent-card.json`,
+                `${endpoint}/agentcard.json`,
+              ];
+              
+              for (const agentCardUrl of agentCardUrls) {
+                try {
+                  const response = await fetch(agentCardUrl, {
+                    headers: { 'Accept': 'application/json' },
+                    signal: AbortSignal.timeout(5000),
+                  });
+                  if (response.ok) {
+                    const cardData = await response.json() as unknown;
+                    if (cardData && typeof cardData === 'object') {
+                      const keys = Object.keys(cardData);
+                      const isAgentCard = keys.includes('skills') || keys.includes('capabilities') || keys.includes('protocolVersion');
+                      if (isAgentCard) {
+                        agentCard = cardData;
+                        console.log(`Successfully fetched agent card from: ${agentCardUrl}`);
+                        break;
+                      }
+                    }
+                  }
+                } catch (err) {
+                  continue;
+                }
+              }
+              
+              if (agentCard) break;
+            } catch (err) {
+              console.log('Error fetching from endpoint:', err);
+            }
+          }
+          
+          // If still no agent card, try fetching from agentURI domain
+          if (!agentCard && (agentURI.startsWith('http://') || agentURI.startsWith('https://'))) {
+            try {
+              const url = new URL(agentURI);
+              const wellKnownUrl = `${url.origin}/.well-known/agent-card.json`;
+              const response = await fetch(wellKnownUrl, {
+                headers: { 'Accept': 'application/json' },
+                signal: AbortSignal.timeout(5000),
+              });
+              if (response.ok) {
+                const cardData = await response.json() as unknown;
+                if (cardData && typeof cardData === 'object') {
+                  const keys = Object.keys(cardData);
+                  const isAgentCard = keys.includes('skills') || keys.includes('capabilities') || keys.includes('protocolVersion');
+                  if (isAgentCard) {
+                    agentCard = cardData;
+                    console.log('Successfully fetched agent card from agentURI domain');
+                  }
+                }
+              }
+            } catch (err) {
+              console.log('Error fetching from agentURI domain:', err);
+            }
+          }
+        }
+      } catch (error) {
+        // Log error for debugging
+        console.error(`Failed to fetch agentCard using SDK from ${agentURI}:`, error);
+        if (error instanceof Error) {
+          console.error(`Error message: ${error.message}`);
+        }
+      }
+    }
+    
+    // Final validation - ensure agentCard has the expected structure
+    if (agentCard && typeof agentCard === 'object') {
+      const keys = Object.keys(agentCard);
+      const hasAgentCardStructure = keys.includes('skills') || keys.includes('capabilities') || keys.includes('protocolVersion');
+      const isRegistrationFile = keys.includes('type') || keys.includes('endpoints') || keys.includes('registrations');
+      
+      if (isRegistrationFile && !hasAgentCardStructure) {
+        console.log('Rejecting agentCard - appears to be registration file data');
+        agentCard = null;
+      }
+    }
+    
+    const response = {
+      ...agentSummary,
+      agentURI: agentURI || undefined,
+      agentCard: agentCard || undefined, // Only include if not null
+    };
+    
+    console.log('Returning agent data:', {
+      hasAgentCard: !!response.agentCard,
+      agentCardKeys: response.agentCard ? Object.keys(response.agentCard) : [],
+      skills: (response.agentCard as any)?.skills?.length || 0,
+      capabilities: !!(response.agentCard as any)?.capabilities,
+      agentURI: response.agentURI,
+    });
+    
+    return NextResponse.json(response);
   } catch (error) {
     console.error('Agent API error:', error);
     return NextResponse.json(

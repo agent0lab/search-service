@@ -1,13 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, ExternalLink, CheckCircle2, XCircle, User, CheckCircle, Code, Users, Copy, Network, Shield, Info, Settings, BookOpen, Zap, Tag, FileText, Globe } from 'lucide-react';
+import { ArrowLeft, ExternalLink, CheckCircle2, XCircle, User, CheckCircle, Code, Users, Copy, Network, Shield, Info, Settings, BookOpen, Zap, Tag, FileText, Globe, Building2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Header } from '@/components/Header';
 
 interface AgentCardSkill {
   id?: string;
@@ -86,6 +88,7 @@ interface AgentSummary {
 
 export default function AgentDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const agentId = decodeURIComponent(params.agentId as string);
   
   const [agent, setAgent] = useState<AgentSummary | null>(null);
@@ -93,6 +96,24 @@ export default function AgentDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [backUrl, setBackUrl] = useState('/');
+
+  // Determine where to go back based on referrer or sessionStorage
+  useEffect(() => {
+    // Check if we have a stored search state (user came from search page)
+    const storedState = sessionStorage.getItem('agent-search-state');
+    if (storedState) {
+      setBackUrl('/search');
+    } else {
+      // Check document referrer
+      const referrer = document.referrer;
+      if (referrer && (referrer.includes('/search') || referrer.includes('?q='))) {
+        setBackUrl('/search');
+      } else {
+        setBackUrl('/');
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (!agentId) return;
@@ -116,6 +137,9 @@ export default function AgentDetailPage() {
           agentCardKeys: agentData.agentCard ? Object.keys(agentData.agentCard) : [],
           skills: agentData.agentCard?.skills?.length || 0,
           extensions: agentData.agentCard?.capabilities?.extensions?.length || 0,
+          capabilities: !!agentData.agentCard?.capabilities,
+          agentURI: agentData.agentURI,
+          fullAgentCard: agentData.agentCard,
         });
         setAgent(agentData);
       } catch (err) {
@@ -159,10 +183,13 @@ export default function AgentDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading agent details...</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <Header />
+        <div className="flex items-center justify-center min-h-[calc(100vh-80px)]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading agent details...</p>
+          </div>
         </div>
       </div>
     );
@@ -170,15 +197,16 @@ export default function AgentDetailPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <Header />
         <div className="container mx-auto px-4 py-8">
-          <Link href="/">
-            <Button variant="ghost" className="mb-4">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Search
+          <Link href={backUrl}>
+            <Button variant="ghost" className="mb-4 gap-2 text-muted-foreground hover:text-foreground hover:bg-slate-800/50">
+              <ArrowLeft className="h-4 w-4" />
+              {backUrl === '/search' ? 'Back to Search' : 'Back to Home'}
             </Button>
           </Link>
-          <Card className="border-destructive">
+          <Card className="border-destructive bg-slate-800/50">
             <CardContent className="p-6">
               <p className="text-destructive">{error}</p>
             </CardContent>
@@ -193,18 +221,19 @@ export default function AgentDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <Header />
       <div className="container mx-auto px-4 py-8">
-        <Link href="/">
-          <Button variant="ghost" className="mb-6">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Search
+        <Link href={backUrl}>
+          <Button variant="ghost" className="mb-6 gap-2 text-muted-foreground hover:text-foreground hover:bg-slate-800/50">
+            <ArrowLeft className="h-4 w-4" />
+            {backUrl === '/search' ? 'Back to Search' : 'Back to Home'}
           </Button>
         </Link>
 
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Hero Header */}
-          <div className="bg-card rounded-lg border p-6">
+          <div className="bg-slate-800/50 rounded-lg border border-slate-700 p-6">
             <div className="flex items-start gap-6">
               {agent.image ? (
                 <div className="flex-shrink-0">
@@ -226,7 +255,33 @@ export default function AgentDetailPage() {
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <h1 className="text-3xl font-bold mb-2">{agent.name || `Agent ${agentId}`}</h1>
+                <div className="flex items-center gap-2 mb-2">
+                  <h1 className="text-3xl font-bold">{agent.name || `Agent ${agentId}`}</h1>
+                  {(() => {
+                    const warnings: string[] = [];
+                    const agentURI = agent.agentURI;
+                    // Only warn if agentURI is missing, null, or empty string
+                    if (!agentURI || (typeof agentURI === 'string' && agentURI.trim() === '')) {
+                      warnings.push('Agent URI');
+                    }
+                    // Only warn if description is missing or empty
+                    if (!agent.description || (typeof agent.description === 'string' && agent.description.trim() === '')) {
+                      warnings.push('Description');
+                    }
+                    const hasMissingData = warnings.length > 0;
+                    
+                    return hasMissingData ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <AlertTriangle className="h-5 w-5 text-yellow-500 flex-shrink-0 cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs">Missing: {warnings.join(', ')}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : null;
+                  })()}
+                </div>
                 {agent.description && (
                   <p className="text-sm text-muted-foreground mb-4 break-words leading-relaxed">
                     {agent.description}
@@ -260,7 +315,14 @@ export default function AgentDetailPage() {
                   )}
                   <Badge variant="outline" className="text-xs">
                     <Network className="h-3 w-3 mr-1" />
-                    Chain {agent.chainId}
+                    {(() => {
+                      const chainNames: Record<number, string> = {
+                        11155111: 'Ethereum Sepolia',
+                        84532: 'Base Sepolia',
+                        80002: 'Polygon Amoy',
+                      };
+                      return chainNames[agent.chainId] || `Chain ${agent.chainId}`;
+                    })()}
                   </Badge>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
@@ -282,85 +344,55 @@ export default function AgentDetailPage() {
             </div>
           </div>
 
-          {/* Statistics Overview */}
-          {((agent.mcpTools && agent.mcpTools.length > 0) || (agent.a2aSkills && agent.a2aSkills.length > 0) || (agent.supportedTrusts && agent.supportedTrusts.length > 0) || (agent.owners && agent.owners.length > 0)) && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Info className="h-4 w-4" />
-                  Statistics Overview
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {agent.mcpTools && agent.mcpTools.length > 0 && (
-                  <div className="p-3 bg-muted/30 rounded-md">
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <Code className="h-3.5 w-3.5 text-muted-foreground" />
-                      <div className="text-xs font-medium text-muted-foreground">MCP Tools</div>
-                    </div>
-                    <div className="text-xl font-bold">{agent.mcpTools.length}</div>
-                  </div>
-                )}
-                {agent.a2aSkills && agent.a2aSkills.length > 0 && (
-                  <div className="p-3 bg-muted/30 rounded-md">
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                      <div className="text-xs font-medium text-muted-foreground">A2A Skills</div>
-                    </div>
-                    <div className="text-xl font-bold">{agent.a2aSkills.length}</div>
-                  </div>
-                )}
-                {agent.supportedTrusts && agent.supportedTrusts.length > 0 && (
-                  <div className="p-3 bg-muted/30 rounded-md">
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <Shield className="h-3.5 w-3.5 text-muted-foreground" />
-                      <div className="text-xs font-medium text-muted-foreground">Trust Models</div>
-                    </div>
-                    <div className="text-xl font-bold">{agent.supportedTrusts.length}</div>
-                  </div>
-                )}
-          {agent.owners && agent.owners.length > 0 && (
-                  <div className="p-3 bg-muted/30 rounded-md">
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <User className="h-3.5 w-3.5 text-muted-foreground" />
-                      <div className="text-xs font-medium text-muted-foreground">Owners</div>
-                    </div>
-                    <div className="text-xl font-bold">{agent.owners.length}</div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-          )}
-
           {/* Tabs for organized content */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-6">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              {agent.agentCard?.skills && agent.agentCard.skills.length > 0 && (
-                <TabsTrigger value="skills">Skills</TabsTrigger>
-              )}
-              {agent.agentCard && (
-                <TabsTrigger value="protocol">Protocol</TabsTrigger>
-              )}
-              {agent.extras && Object.keys(agent.extras).length > 0 && (
-                <TabsTrigger value="metadata">Metadata</TabsTrigger>
-              )}
-            </TabsList>
+            <div className="w-full mb-6">
+              <TabsList className="inline-flex h-10 items-center justify-center rounded-md bg-slate-800/50 p-1 text-muted-foreground gap-1 border border-slate-700">
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                {((agent.agentCard?.skills && agent.agentCard.skills.length > 0) || (agent.a2aSkills && agent.a2aSkills.length > 0) || (agent.mcpTools && agent.mcpTools.length > 0)) ? (
+                  <TabsTrigger value="skills">Skills</TabsTrigger>
+                ) : null}
+                {agent.agentCard?.capabilities ? (
+                  <TabsTrigger value="capabilities">Capabilities</TabsTrigger>
+                ) : null}
+                {(agent.mcpEndpoint || agent.a2aEndpoint || agent.agentURI) ? (
+                  <TabsTrigger value="protocol">Protocol</TabsTrigger>
+                ) : null}
+                {agent.extras && Object.keys(agent.extras).length > 0 ? (
+                  <TabsTrigger value="metadata">Metadata</TabsTrigger>
+                ) : null}
+              </TabsList>
+            </div>
 
             {/* Overview Tab */}
             <TabsContent value="overview" className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Information */}
-                <Card className="h-fit">
+                <Card className="h-fit bg-slate-800/50 border-slate-700">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-lg">Information</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div>
-                      <div className="text-xs font-medium mb-1 text-muted-foreground">Chain ID</div>
-                      <div className="text-sm font-mono font-semibold">{agent.chainId}</div>
+                      <div className="text-xs font-medium mb-1 text-muted-foreground">Chain</div>
+                      <div className="text-sm font-semibold">
+                        {(() => {
+                          const chainNames: Record<number, string> = {
+                            11155111: 'Ethereum Sepolia',
+                            84532: 'Base Sepolia',
+                            80002: 'Polygon Amoy',
+                          };
+                          const chainName = chainNames[agent.chainId];
+                          return chainName ? (
+                            <>
+                              {chainName}
+                              <span className="text-xs text-muted-foreground font-mono ml-2">({agent.chainId})</span>
+                            </>
+                          ) : (
+                            `Chain ${agent.chainId}`
+                          );
+                        })()}
+                      </div>
                     </div>
                     <div>
                       <div className="text-xs font-medium mb-1 text-muted-foreground">x402 Support</div>
@@ -494,9 +526,87 @@ export default function AgentDetailPage() {
 
                 {/* Right Column: Trust Models and Ownership */}
                 <div className="space-y-6">
+                  {/* Provider & Documentation - Combined */}
+                  {(agent.agentCard?.provider || agent.agentCard?.documentationUrl) && (
+                    <Card className="bg-slate-800/50 border-slate-700">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4" />
+                          <CardTitle className="text-lg">Provider</CardTitle>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {agent.agentCard.provider?.organization && (
+                          <div>
+                            <div className="text-xs font-medium mb-1.5 text-muted-foreground">Organization</div>
+                            <div className="text-sm font-semibold">{agent.agentCard.provider.organization}</div>
+                          </div>
+                        )}
+                        {agent.agentCard.provider?.url && (
+                          <div>
+                            <div className="text-xs font-medium mb-1.5 text-muted-foreground">Provider URL</div>
+                            <a
+                              href={agent.agentCard.provider.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-primary hover:underline inline-flex items-center gap-1.5 group"
+                            >
+                              <span className="break-all">{agent.agentCard.provider.url}</span>
+                              <ExternalLink className="h-3.5 w-3.5 flex-shrink-0 group-hover:scale-110 transition-transform" />
+                            </a>
+                          </div>
+                        )}
+                        {agent.agentCard.documentationUrl && (
+                          <div>
+                            <div className="text-xs font-medium mb-1.5 text-muted-foreground">Documentation</div>
+                            <a
+                              href={agent.agentCard.documentationUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-primary hover:underline inline-flex items-center gap-1.5 group"
+                            >
+                              <FileText className="h-3.5 w-3.5 flex-shrink-0" />
+                              <span>View Documentation</span>
+                              <ExternalLink className="h-3.5 w-3.5 flex-shrink-0 group-hover:scale-110 transition-transform" />
+                            </a>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Security Schemes Summary */}
+                  {agent.agentCard?.securitySchemes && Object.keys(agent.agentCard.securitySchemes).length > 0 && (
+                    <Card className="bg-slate-800/50 border-slate-700">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center gap-2">
+                          <Shield className="h-4 w-4" />
+                          <CardTitle className="text-lg">Authentication</CardTitle>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex flex-wrap gap-2">
+                          {Object.entries(agent.agentCard.securitySchemes).map(([schemeName, scheme]) => {
+                            const isRequired = agent.agentCard?.security?.some(sec => sec[schemeName]);
+                            
+                            return (
+                              <Badge
+                                key={schemeName}
+                                variant={isRequired ? 'default' : 'secondary'}
+                                className="text-xs"
+                              >
+                                {schemeName}
+                                {isRequired && ' • Required'}
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
                   {/* Trust Models */}
                   {agent.supportedTrusts && agent.supportedTrusts.length > 0 && (
-                    <Card className="h-fit">
+                    <Card className="h-fit bg-slate-800/50 border-slate-700">
                       <CardHeader className="pb-3">
               <div className="flex items-center gap-2">
                           <Shield className="h-4 w-4" />
@@ -533,7 +643,7 @@ export default function AgentDetailPage() {
 
                   {/* Owners */}
                   {agent.owners && agent.owners.length > 0 && (
-            <Card>
+            <Card className="bg-slate-800/50 border-slate-700">
                       <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
                           <User className="h-4 w-4" />
@@ -582,7 +692,7 @@ export default function AgentDetailPage() {
 
               {/* Operators */}
               {agent.operators && agent.operators.length > 0 && (
-                <Card className="mt-6">
+                <Card className="mt-6 bg-slate-800/50 border-slate-700">
                   <CardHeader className="pb-3">
                     <div className="flex items-center gap-2">
                       <Settings className="h-4 w-4" />
@@ -629,7 +739,7 @@ export default function AgentDetailPage() {
 
               {/* Endpoints */}
               {((agent.mcp && agent.mcpEndpoint) || (agent.a2a && agent.a2aEndpoint)) && (
-            <Card>
+            <Card className="bg-slate-800/50 border-slate-700">
                   <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
                       <Settings className="h-4 w-4" />
@@ -715,377 +825,616 @@ export default function AgentDetailPage() {
               </CardContent>
             </Card>
           )}
-
-          {/* Capabilities */}
-              {((agent.mcpTools && agent.mcpTools.length > 0) || 
-                (agent.mcpPrompts && agent.mcpPrompts.length > 0) || 
-                (agent.mcpResources && agent.mcpResources.length > 0) ||
-                (agent.agentCard?.capabilities)) && (
-                <div className="space-y-6">
-                  {/* Agent Capabilities */}
-                  {agent.agentCard?.capabilities && (
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center gap-2">
-                          <Zap className="h-4 w-4" />
-                          <CardTitle className="text-lg">Agent Capabilities</CardTitle>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex flex-wrap gap-2">
-                          {agent.agentCard.capabilities.streaming && (
-                            <Badge variant="secondary" className="text-xs">
-                              <Zap className="h-3 w-3 mr-1" />
-                              Streaming
-                            </Badge>
-                          )}
-                          {agent.agentCard.capabilities.pushNotifications && (
-                            <Badge variant="secondary" className="text-xs">
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              Push Notifications
-                            </Badge>
-                          )}
-                          {agent.agentCard.capabilities.stateTransitionHistory && (
-                            <Badge variant="secondary" className="text-xs">
-                              <FileText className="h-3 w-3 mr-1" />
-                              State Transition History
-                            </Badge>
-                          )}
-                          {(!agent.agentCard.capabilities.streaming && 
-                            !agent.agentCard.capabilities.pushNotifications && 
-                            !agent.agentCard.capabilities.stateTransitionHistory) && (
-                            <span className="text-sm text-muted-foreground">No capabilities enabled</span>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* MCP Tools */}
-                  {agent.mcpTools && agent.mcpTools.length > 0 && (
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center gap-2">
-                          <Code className="h-4 w-4" />
-                          <CardTitle className="text-lg">MCP Tools ({agent.mcpTools.length})</CardTitle>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-1.5">
-                          {agent.mcpTools.map((tool, idx) => (
-                            <div key={idx} className="p-2 bg-muted/30 rounded-md border">
-                              <div className="font-mono text-xs break-all">{tool}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* MCP Prompts */}
-                  {agent.mcpPrompts && agent.mcpPrompts.length > 0 && (
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center gap-2">
-                          <Code className="h-4 w-4" />
-                          <CardTitle className="text-lg">MCP Prompts ({agent.mcpPrompts.length})</CardTitle>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-1.5">
-                          {agent.mcpPrompts.map((prompt, idx) => (
-                            <div key={idx} className="p-2 bg-muted/30 rounded-md border">
-                              <div className="font-mono text-xs break-all">{prompt}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* MCP Resources */}
-                  {agent.mcpResources && agent.mcpResources.length > 0 && (
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center gap-2">
-                          <Code className="h-4 w-4" />
-                          <CardTitle className="text-lg">MCP Resources ({agent.mcpResources.length})</CardTitle>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-1.5">
-                          {agent.mcpResources.map((resource, idx) => (
-                            <div key={idx} className="p-2 bg-muted/30 rounded-md border">
-                              <div className="font-mono text-xs break-all">{resource}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-                </div>
-              )}
             </TabsContent>
 
             {/* Skills Tab */}
-            {agent.agentCard?.skills && agent.agentCard.skills.length > 0 && (
+            {((agent.agentCard?.skills && agent.agentCard.skills.length > 0) || (agent.a2aSkills && agent.a2aSkills.length > 0) || (agent.mcpTools && agent.mcpTools.length > 0)) && (
               <TabsContent value="skills" className="space-y-6">
-            <Card>
+                {/* All Skill Tags - Combined from all skills */}
+                {agent.agentCard?.skills && agent.agentCard.skills.length > 0 && (() => {
+                  const allTags = agent.agentCard.skills
+                    .flatMap(skill => skill.tags || [])
+                    .filter((tag, index, self) => self.indexOf(tag) === index); // Remove duplicates
+                  
+                  return allTags.length > 0 ? (
+                    <Card className="bg-slate-800/50 border-slate-700">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center gap-2">
+                          <Tag className="h-4 w-4" />
+                          <CardTitle className="text-lg">Skill Tags</CardTitle>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                          All tags associated with this agent's skills.
+                        </p>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex flex-wrap gap-2">
+                          {allTags.map((tag, idx) => (
+                            <Badge key={idx} variant="secondary" className="text-sm px-3 py-1">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : null;
+                })()}
+
+                {/* Agent Card Skills - Full Details */}
+                {agent.agentCard?.skills && agent.agentCard.skills.length > 0 && (
+                  <Card className="bg-slate-800/50 border-slate-700">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-2">
+                        <Zap className="h-4 w-4" />
+                        <CardTitle className="text-lg">Skills ({agent.agentCard.skills.length})</CardTitle>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                        Detailed capabilities and skills that this agent can perform.
+                      </p>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {agent.agentCard.skills.map((skill, idx) => (
+                        <div key={skill.id || idx} className="p-6 bg-slate-900/50 rounded-lg border border-slate-700 hover:bg-slate-900/70 transition-colors">
+                          <div className="space-y-4">
+                            {/* Skill Header */}
+                            <div>
+                              <div className="flex items-start justify-between gap-3 mb-2">
+                                <div className="flex-1">
+                                  <h3 className="text-xl font-semibold mb-1">{skill.name || `Skill ${idx + 1}`}</h3>
+                                  {skill.id && (
+                                    <div className="text-xs font-mono text-muted-foreground mb-2">{skill.id}</div>
+                                  )}
+                                </div>
+                                {skill.id && (
+                                  <Badge variant="outline" className="text-xs">
+                                    <Tag className="h-3 w-3 mr-1" />
+                                    {skill.id}
+                                  </Badge>
+                                )}
+                              </div>
+                              {skill.description && (
+                                <p className="text-sm text-muted-foreground leading-relaxed">{skill.description}</p>
+                              )}
+                            </div>
+
+                            {/* Tags */}
+                            {skill.tags && skill.tags.length > 0 && (
+                              <div>
+                                <div className="text-xs font-medium mb-2 text-muted-foreground flex items-center gap-1">
+                                  <Tag className="h-3 w-3" />
+                                  Tags
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {skill.tags.map((tag, tagIdx) => (
+                                    <Badge key={tagIdx} variant="secondary" className="text-xs">
+                                      {tag}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Examples */}
+                            {skill.examples && skill.examples.length > 0 && (
+                              <div>
+                                <div className="text-xs font-medium mb-2 text-muted-foreground flex items-center gap-1">
+                                  <FileText className="h-3 w-3" />
+                                  Examples
+                                </div>
+                                <div className="space-y-2">
+                                  {skill.examples.map((example, exIdx) => (
+                                    <div key={exIdx} className="p-3 bg-slate-800/50 rounded border-l-2 border-primary/50 text-sm font-mono">
+                                      {example}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Input/Output Modes */}
+                            {(skill.inputModes || skill.outputModes) && (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-slate-700">
+                                {skill.inputModes && skill.inputModes.length > 0 && (
+                                  <div>
+                                    <div className="text-xs font-medium mb-2 text-muted-foreground">Input Modes</div>
+                                    <div className="flex flex-wrap gap-2">
+                                      {skill.inputModes.map((mode, modeIdx) => (
+                                        <Badge key={modeIdx} variant="outline" className="text-xs">
+                                          {mode}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                {skill.outputModes && skill.outputModes.length > 0 && (
+                                  <div>
+                                    <div className="text-xs font-medium mb-2 text-muted-foreground">Output Modes</div>
+                                    <div className="flex flex-wrap gap-2">
+                                      {skill.outputModes.map((mode, modeIdx) => (
+                                        <Badge key={modeIdx} variant="outline" className="text-xs">
+                                          {mode}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* A2A Skills - Fallback */}
+                {!agent.agentCard?.skills && agent.a2aSkills && agent.a2aSkills.length > 0 && (
+                  <Card className="bg-slate-800/50 border-slate-700">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        <CardTitle className="text-lg">A2A Skills ({agent.a2aSkills.length})</CardTitle>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                        Agent-to-Agent (A2A) skills define the capabilities this agent can perform when communicating with other agents.
+                      </p>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {agent.a2aSkills.map((skill, idx) => {
+                        const formattedSkill = skill
+                          .split(/[\/_\-]/)
+                          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                          .join(' ');
+                        const isSkillId = skill.includes('/') || skill.includes('_') || skill.includes('-');
+                        
+                        return (
+                          <div key={idx} className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 hover:bg-slate-900/70 transition-colors">
+                            <div className="flex items-start gap-3">
+                              <Badge variant="outline" className="text-xs">
+                                <Zap className="h-3 w-3 mr-1" />
+                                Skill
+                              </Badge>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-base font-semibold mb-1">{isSkillId ? formattedSkill : skill}</div>
+                                {isSkillId && (
+                                  <div className="text-xs font-mono text-muted-foreground mb-2">{skill}</div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* MCP Tools - Fallback */}
+                {agent.mcpTools && agent.mcpTools.length > 0 && (
+                  <Card className="bg-slate-800/50 border-slate-700">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-2">
+                        <Code className="h-4 w-4" />
+                        <CardTitle className="text-lg">MCP Tools ({agent.mcpTools.length})</CardTitle>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                        Model Context Protocol (MCP) tools are executable functions that this agent can invoke.
+                      </p>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {agent.mcpTools.map((tool, idx) => (
+                        <div key={idx} className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 hover:bg-slate-900/70 transition-colors">
+                          <div className="flex items-start gap-3">
+                            <Badge variant="outline" className="text-xs">
+                              <Code className="h-3 w-3 mr-1" />
+                              Tool
+                            </Badge>
+                            <div className="text-base font-semibold">{tool}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+            )}
+
+            {/* Capabilities Tab */}
+            {agent.agentCard?.capabilities && (
+              <TabsContent value="capabilities" className="space-y-6">
+                <Card className="bg-slate-800/50 border-slate-700">
                   <CardHeader className="pb-3">
                     <div className="flex items-center gap-2">
                       <Zap className="h-4 w-4" />
-                      <CardTitle className="text-lg">Skills</CardTitle>
+                      <CardTitle className="text-lg">Capabilities</CardTitle>
                     </div>
-                <p className="text-xs text-muted-foreground mt-1">Agent capabilities and use cases</p>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {agent.agentCard.skills.map((skill, idx) => (
-                  <div key={skill.id || idx} className="p-4 bg-muted/30 rounded-md border space-y-3">
-                  <div>
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <h4 className="text-sm font-semibold">{skill.name || `Skill ${idx + 1}`}</h4>
-                        {skill.id && (
-                          <Badge variant="outline" className="text-xs font-mono">{skill.id}</Badge>
+                    <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                      Protocol capabilities and features supported by this agent.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* Basic Capabilities */}
+                    <div>
+                      <div className="text-sm font-medium mb-3">Protocol Features</div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {agent.agentCard.capabilities.streaming && (
+                          <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-700">
+                            <div className="flex items-center gap-2 mb-1">
+                              <CheckCircle2 className="h-4 w-4 text-green-500" />
+                              <span className="text-sm font-medium">Streaming</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">Supports streaming responses</p>
+                          </div>
+                        )}
+                        {agent.agentCard.capabilities.pushNotifications && (
+                          <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-700">
+                            <div className="flex items-center gap-2 mb-1">
+                              <CheckCircle2 className="h-4 w-4 text-green-500" />
+                              <span className="text-sm font-medium">Push Notifications</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">Can send push notifications</p>
+                          </div>
+                        )}
+                        {agent.agentCard.capabilities.stateTransitionHistory && (
+                          <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-700">
+                            <div className="flex items-center gap-2 mb-1">
+                              <CheckCircle2 className="h-4 w-4 text-green-500" />
+                              <span className="text-sm font-medium">State Transition History</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">Tracks state transitions</p>
+                          </div>
                         )}
                       </div>
-                      {skill.description && (
-                        <p className="text-xs text-muted-foreground leading-relaxed">{skill.description}</p>
-                      )}
                     </div>
-                    
-                    {skill.tags && skill.tags.length > 0 && (
+
+                    {/* Extensions */}
+                    {agent.agentCard.capabilities.extensions && agent.agentCard.capabilities.extensions.length > 0 && (
                       <div>
-                        <div className="text-xs font-medium mb-1.5 text-muted-foreground flex items-center gap-1">
-                          <Tag className="h-3 w-3" />
-                          Tags
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {skill.tags.map((tag, tagIdx) => (
-                            <Badge key={tagIdx} variant="secondary" className="text-xs">{tag}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                    
-                    {skill.examples && skill.examples.length > 0 && (
-                  <div>
-                        <div className="text-xs font-medium mb-1.5 text-muted-foreground flex items-center gap-1">
-                          <FileText className="h-3 w-3" />
-                          Examples
-                        </div>
-                        <div className="space-y-1.5">
-                          {skill.examples.map((example, exIdx) => (
-                            <div key={exIdx} className="p-2 bg-background rounded border-l-2 border-primary/30 text-xs font-mono">
-                              {example}
+                        <div className="text-sm font-medium mb-3">Extensions</div>
+                        <div className="space-y-4">
+                          {agent.agentCard.capabilities.extensions.map((extension, idx) => (
+                            <div key={idx} className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                              <div className="space-y-3">
+                                {extension.uri && (
+                                  <div className="flex items-start justify-between gap-3">
+                                    <a
+                                      href={extension.uri}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-sm font-medium text-primary hover:underline flex items-center gap-1 flex-1"
+                                    >
+                                      <Globe className="h-3.5 w-3.5" />
+                                      Extension URI
+                                      <ExternalLink className="h-3.5 w-3.5" />
+                                    </a>
+                                    {extension.required && (
+                                      <Badge variant="default" className="text-xs">Required</Badge>
+                                    )}
+                                    {!extension.required && (
+                                      <Badge variant="secondary" className="text-xs">Optional</Badge>
+                                    )}
+                                  </div>
+                                )}
+                                {extension.description && (
+                                  <p className="text-sm text-muted-foreground leading-relaxed">{extension.description}</p>
+                                )}
+                                {extension.params && Object.keys(extension.params).length > 0 && (
+                                  <div className="pt-3 border-t border-slate-700">
+                                    <div className="text-xs font-medium mb-2 text-muted-foreground">Parameters</div>
+                                    <div className="space-y-2">
+                                      {Object.entries(extension.params).map(([key, value]) => (
+                                        <div key={key} className="flex items-start gap-2 text-sm">
+                                          <span className="font-mono font-medium min-w-[120px] text-muted-foreground">{key}:</span>
+                                          <span className="text-foreground break-all">
+                                            {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                    
-                    {(skill.inputModes || skill.outputModes) && (
-                      <div className="grid grid-cols-2 gap-3 pt-2 border-t">
-                        {skill.inputModes && skill.inputModes.length > 0 && (
-                  <div>
-                            <div className="text-xs font-medium mb-1 text-muted-foreground">Input Modes</div>
-                            <div className="flex flex-wrap gap-1">
-                              {skill.inputModes.map((mode, modeIdx) => (
-                                <Badge key={modeIdx} variant="outline" className="text-xs">{mode}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                        {skill.outputModes && skill.outputModes.length > 0 && (
-                  <div>
-                            <div className="text-xs font-medium mb-1 text-muted-foreground">Output Modes</div>
-                            <div className="flex flex-wrap gap-1">
-                              {skill.outputModes.map((mode, modeIdx) => (
-                                <Badge key={modeIdx} variant="outline" className="text-xs">{mode}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                          ))}
+                        </div>
                       </div>
                     )}
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+
+                    {/* Default Input/Output Modes */}
+                    {(agent.agentCard.defaultInputModes || agent.agentCard.defaultOutputModes) && (
+                      <div>
+                        <div className="text-sm font-medium mb-3">Default Modes</div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {agent.agentCard.defaultInputModes && agent.agentCard.defaultInputModes.length > 0 && (
+                            <div>
+                              <div className="text-xs font-medium mb-2 text-muted-foreground">Default Input Modes</div>
+                              <div className="flex flex-wrap gap-2">
+                                {agent.agentCard.defaultInputModes.map((mode, idx) => (
+                                  <Badge key={idx} variant="outline" className="text-xs">
+                                    {mode}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {agent.agentCard.defaultOutputModes && agent.agentCard.defaultOutputModes.length > 0 && (
+                            <div>
+                              <div className="text-xs font-medium mb-2 text-muted-foreground">Default Output Modes</div>
+                              <div className="flex flex-wrap gap-2">
+                                {agent.agentCard.defaultOutputModes.map((mode, idx) => (
+                                  <Badge key={idx} variant="outline" className="text-xs">
+                                    {mode}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </TabsContent>
             )}
 
             {/* Protocol Tab */}
-            {agent.agentCard && (
+            {(agent.mcpEndpoint || agent.a2aEndpoint || agent.agentURI || agent.agentCard?.protocolVersion || agent.agentCard?.securitySchemes || agent.agentCard?.provider || agent.agentCard?.documentationUrl) && (
               <TabsContent value="protocol" className="space-y-6">
-                {/* Extensions */}
-          {agent.agentCard?.capabilities?.extensions && agent.agentCard.capabilities.extensions.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <Code className="h-4 w-4" />
-                  <CardTitle className="text-lg">Extensions</CardTitle>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">Protocol extensions and additional features</p>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {agent.agentCard.capabilities.extensions.map((extension, idx) => (
-                  <div key={idx} className="p-3 bg-muted/30 rounded-md border">
-                    {extension.uri && (
-                      <div className="flex items-center gap-2 mb-2">
-                        <a
-                          href={extension.uri}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs font-medium text-primary hover:underline flex items-center gap-1"
-                        >
-                          <Globe className="h-3 w-3" />
-                          Extension URI
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                        {extension.required && (
-                          <Badge variant="default" className="text-xs">Required</Badge>
-                        )}
+                {/* Endpoints - already shown in Overview, but show here too for completeness */}
+                {((agent.mcp && agent.mcpEndpoint) || (agent.a2a && agent.a2aEndpoint)) && (
+                  <Card className="bg-slate-800/50 border-slate-700">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-2">
+                        <Settings className="h-4 w-4" />
+                        <CardTitle className="text-lg">Endpoints</CardTitle>
                       </div>
-                    )}
-                    {extension.description && (
-                      <p className="text-xs text-muted-foreground mb-2 leading-relaxed">{extension.description}</p>
-                    )}
-                    {extension.params && Object.keys(extension.params).length > 0 && (
-                      <div className="mt-2 pt-2 border-t">
-                        <div className="text-xs font-medium mb-1.5 text-muted-foreground">Parameters</div>
-                        <div className="space-y-1">
-                          {Object.entries(extension.params).map(([key, value]) => (
-                            <div key={key} className="flex items-start gap-2 text-xs">
-                              <span className="font-mono font-medium min-w-[100px]">{key}:</span>
-                              <span className="text-muted-foreground break-all">
-                                {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                              </span>
+                      <p className="text-xs text-muted-foreground mt-1">Agent service endpoints</p>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {agent.mcp && agent.mcpEndpoint && (
+                        <div className="p-3 bg-muted/30 rounded-md border">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-1.5">
+                              <Code className="h-3.5 w-3.5" />
+                              <div className="text-sm font-medium">MCP</div>
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-
-              {/* Security Schemes */}
-              {agent.agentCard?.securitySchemes && Object.keys(agent.agentCard.securitySchemes).length > 0 && (
-                <Card>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center gap-2">
-                      <Shield className="h-4 w-4" />
-                      <CardTitle className="text-lg">Security Schemes</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {Object.entries(agent.agentCard.securitySchemes).map(([key, scheme]) => (
-                        <div key={key} className="p-3 bg-muted/30 rounded-md border">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge variant="outline" className="text-xs">{key}</Badge>
+                            {agent.mcpVersion && agent.mcpVersion !== '0' && String(agent.mcpVersion).trim() !== '' && (
+                              <Badge variant="secondary" className="text-xs font-normal">{agent.mcpVersion}</Badge>
+                            )}
                           </div>
-                          <pre className="text-xs font-mono overflow-auto">
-                            {JSON.stringify(scheme, null, 2)}
-                          </pre>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-mono text-xs break-all">{agent.mcpEndpoint}</div>
+                            </div>
+                            <a
+                              href={agent.mcpEndpoint}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-muted-foreground hover:text-foreground flex-shrink-0"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 flex-shrink-0"
+                              onClick={() => copyToClipboard(agent.mcpEndpoint!, 'mcp-endpoint')}
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                          {copied === 'mcp-endpoint' && (
+                            <p className="text-xs text-green-600 dark:text-green-400 mt-1.5">Copied!</p>
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+                      )}
+                      {agent.a2a && agent.a2aEndpoint && (
+                        <div className="p-3 bg-muted/30 rounded-md border">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-1.5">
+                              <Users className="h-3.5 w-3.5" />
+                              <div className="text-sm font-medium">A2A</div>
+                            </div>
+                            {agent.a2aVersion && agent.a2aVersion !== '0' && String(agent.a2aVersion).trim() !== '' && (
+                              <Badge variant="secondary" className="text-xs font-normal">{agent.a2aVersion}</Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-mono text-xs break-all">{agent.a2aEndpoint}</div>
+                            </div>
+                            <a
+                              href={agent.a2aEndpoint}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-muted-foreground hover:text-foreground flex-shrink-0"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 flex-shrink-0"
+                              onClick={() => copyToClipboard(agent.a2aEndpoint!, 'a2a-endpoint')}
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                          {copied === 'a2a-endpoint' && (
+                            <p className="text-xs text-green-600 dark:text-green-400 mt-1.5">Copied!</p>
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
 
-              {/* Protocol Information */}
-          <Card>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-2">
-                    <Info className="h-4 w-4" />
-                    <CardTitle className="text-lg">Protocol Information</CardTitle>
-                  </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-                {agent.agentCard.protocolVersion && (
-                <div>
-                    <div className="text-xs font-medium mb-1 text-muted-foreground">Protocol Version</div>
-                    <div className="text-sm font-mono">{agent.agentCard.protocolVersion}</div>
-                </div>
-                )}
-                {agent.agentCard.version && (
-                <div>
-                    <div className="text-xs font-medium mb-1 text-muted-foreground">Agent Version</div>
-                    <div className="text-sm font-mono">{agent.agentCard.version}</div>
-                  </div>
-                )}
-                {agent.agentCard.preferredTransport && (
-                  <div>
-                    <div className="text-xs font-medium mb-1 text-muted-foreground">Preferred Transport</div>
-                    <Badge variant="outline" className="text-xs">{agent.agentCard.preferredTransport}</Badge>
-                  </div>
-                )}
-                {agent.agentCard.provider && (
-                  <div>
-                    <div className="text-xs font-medium mb-1 text-muted-foreground">Provider</div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">{agent.agentCard.provider.organization || 'Unknown'}</span>
-                      {agent.agentCard.provider.url && (
+                {/* Agent URI */}
+                {agent.agentURI && (
+                  <Card className="bg-slate-800/50 border-slate-700">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-2">
+                        <Globe className="h-4 w-4" />
+                        <CardTitle className="text-lg">Agent URI</CardTitle>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Agent card URI</p>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center gap-1.5 p-2 bg-muted/30 rounded-md">
+                        <div className="text-xs font-mono flex-1 break-all">{agent.agentURI}</div>
                         <a
-                          href={agent.agentCard.provider.url}
+                          href={agent.agentURI}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-primary hover:underline flex items-center gap-1 text-xs"
+                          className="text-muted-foreground hover:text-foreground flex-shrink-0"
                         >
                           <ExternalLink className="h-3 w-3" />
                         </a>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 flex-shrink-0"
+                          onClick={() => copyToClipboard(agent.agentURI!, 'agentURI-protocol')}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      {copied === 'agentURI-protocol' && (
+                        <p className="text-xs text-green-600 dark:text-green-400 mt-1">Copied!</p>
                       )}
-                </div>
-              </div>
+                    </CardContent>
+                  </Card>
                 )}
-                {agent.agentCard.documentationUrl && (
-                <div>
-                    <div className="text-xs font-medium mb-1 text-muted-foreground">Documentation</div>
-                    <a
-                      href={agent.agentCard.documentationUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-primary hover:underline flex items-center gap-1"
-                    >
-                      <BookOpen className="h-3.5 w-3.5" />
-                      View Documentation
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
-                </div>
-              )}
-                {agent.agentCard.defaultInputModes && agent.agentCard.defaultInputModes.length > 0 && (
-                <div>
-                    <div className="text-xs font-medium mb-1 text-muted-foreground">Default Input Modes</div>
-                    <div className="flex flex-wrap gap-1">
-                      {agent.agentCard.defaultInputModes.map((mode, idx) => (
-                        <Badge key={idx} variant="outline" className="text-xs">{mode}</Badge>
-                      ))}
-                </div>
-                </div>
-              )}
-                {agent.agentCard.defaultOutputModes && agent.agentCard.defaultOutputModes.length > 0 && (
-                <div>
-                    <div className="text-xs font-medium mb-1 text-muted-foreground">Default Output Modes</div>
-                    <div className="flex flex-wrap gap-1">
-                      {agent.agentCard.defaultOutputModes.map((mode, idx) => (
-                        <Badge key={idx} variant="outline" className="text-xs">{mode}</Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-            </TabsContent>
+
+                {/* Protocol Information */}
+                {(agent.agentCard?.protocolVersion || agent.agentCard?.preferredTransport || agent.agentCard?.version || agent.agentCard?.url) && (
+                  <Card className="bg-slate-800/50 border-slate-700">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-2">
+                        <Info className="h-4 w-4" />
+                        <CardTitle className="text-lg">Protocol Information</CardTitle>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Protocol version and transport details</p>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {agent.agentCard.protocolVersion && (
+                        <div className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
+                          <span className="text-sm font-medium">Protocol Version</span>
+                          <Badge variant="secondary" className="text-xs">{agent.agentCard.protocolVersion}</Badge>
+                        </div>
+                      )}
+                      {agent.agentCard.version && (
+                        <div className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
+                          <span className="text-sm font-medium">Agent Version</span>
+                          <Badge variant="outline" className="text-xs">{agent.agentCard.version}</Badge>
+                        </div>
+                      )}
+                      {agent.agentCard.preferredTransport && (
+                        <div className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
+                          <span className="text-sm font-medium">Preferred Transport</span>
+                          <Badge variant="outline" className="text-xs">{agent.agentCard.preferredTransport}</Badge>
+                        </div>
+                      )}
+                      {agent.agentCard.url && (
+                        <div className="p-2 bg-muted/30 rounded-md">
+                          <div className="text-xs font-medium mb-1 text-muted-foreground">Agent URL</div>
+                          <div className="flex items-center gap-2">
+                            <div className="text-xs font-mono flex-1 break-all">{agent.agentCard.url}</div>
+                            <a
+                              href={agent.agentCard.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-muted-foreground hover:text-foreground flex-shrink-0"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </div>
+                        </div>
+                      )}
+                      {agent.agentCard.supportsAuthenticatedExtendedCard && (
+                        <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-md">
+                          <CheckCircle2 className="h-4 w-4 text-green-500" />
+                          <span className="text-sm">Supports Authenticated Extended Card</span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+
+                {/* Security Schemes */}
+                {agent.agentCard?.securitySchemes && Object.keys(agent.agentCard.securitySchemes).length > 0 && (
+                  <Card className="bg-slate-800/50 border-slate-700">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-2">
+                        <Shield className="h-4 w-4" />
+                        <CardTitle className="text-lg">Security Schemes</CardTitle>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Authentication and security methods</p>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {Object.entries(agent.agentCard.securitySchemes).map(([schemeName, scheme]) => {
+                        const schemeData = scheme as any;
+                        const isRequired = agent.agentCard?.security?.some(sec => sec[schemeName]);
+                        
+                        return (
+                          <div key={schemeName} className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <div className="flex items-center gap-2">
+                                <Shield className="h-4 w-4 text-primary" />
+                                <span className="text-sm font-semibold capitalize">{schemeName}</span>
+                              </div>
+                              {isRequired && (
+                                <Badge variant="default" className="text-xs">Required</Badge>
+                              )}
+                              {!isRequired && (
+                                <Badge variant="secondary" className="text-xs">Optional</Badge>
+                              )}
+                            </div>
+                            
+                            <div className="space-y-2">
+                              {schemeData.type && (
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="font-medium text-muted-foreground min-w-[80px]">Type:</span>
+                                  <Badge variant="outline" className="text-xs">{schemeData.type}</Badge>
+                                </div>
+                              )}
+                              {schemeData.scheme && (
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="font-medium text-muted-foreground min-w-[80px]">Scheme:</span>
+                                  <Badge variant="outline" className="text-xs">{schemeData.scheme}</Badge>
+                                </div>
+                              )}
+                              {schemeData.in && (
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="font-medium text-muted-foreground min-w-[80px]">Location:</span>
+                                  <Badge variant="outline" className="text-xs">{schemeData.in}</Badge>
+                                </div>
+                              )}
+                              {schemeData.name && (
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="font-medium text-muted-foreground min-w-[80px]">Name:</span>
+                                  <span className="font-mono text-xs">{schemeData.name}</span>
+                                </div>
+                              )}
+                              {schemeData.description && (
+                                <div className="pt-2 border-t border-slate-700">
+                                  <p className="text-xs text-muted-foreground leading-relaxed">{schemeData.description}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
             )}
 
             {/* Metadata Tab */}
             {agent.extras && Object.keys(agent.extras).length > 0 && (
               <TabsContent value="metadata" className="space-y-6">
-                <Card>
+                <Card className="bg-slate-800/50 border-slate-700">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-lg">Additional Metadata</CardTitle>
                   </CardHeader>

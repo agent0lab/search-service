@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CheckCircle2, XCircle, ChevronRight } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { CheckCircle2, XCircle, ChevronRight, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface RecentAgent {
@@ -16,6 +17,7 @@ interface RecentAgent {
   description: string;
   createdAt: string;
   active: boolean;
+  agentURI?: string;
 }
 
 const CHAIN_NAMES: Record<number, string> = {
@@ -50,6 +52,17 @@ function formatDate(dateString: string) {
 
 function AgentCard({ agent, agentUrl, getChainColor }: { agent: RecentAgent; agentUrl: string; getChainColor: (chainId: number) => string }) {
   const [imageError, setImageError] = useState(false);
+  
+  // Check for missing data - only warn if actually missing
+  const warnings: string[] = [];
+  const agentURI = agent.agentURI;
+  if (!agentURI || (typeof agentURI === 'string' && agentURI.trim() === '')) {
+    warnings.push('Agent URI');
+  }
+  if (!agent.description || (typeof agent.description === 'string' && agent.description.trim() === '')) {
+    warnings.push('Description');
+  }
+  const hasMissingData = warnings.length > 0;
 
   return (
     <Link href={agentUrl} className="block h-full">
@@ -73,9 +86,21 @@ function AgentCard({ agent, agentUrl, getChainColor }: { agent: RecentAgent; age
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-sm mb-1 truncate group-hover:text-primary transition-colors">
-                {agent.name}
-              </h3>
+              <div className="flex items-center gap-1.5 mb-1">
+                <h3 className="font-semibold text-sm truncate group-hover:text-primary transition-colors flex-1">
+                  {agent.name}
+                </h3>
+                {hasMissingData && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <AlertTriangle className="h-4 w-4 text-yellow-500 flex-shrink-0 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">Missing: {warnings.join(', ')}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="outline" className={`text-xs ${getChainColor(agent.chainId)}`}>
                   {CHAIN_NAMES[agent.chainId]?.split(' ')[0] || `Chain ${agent.chainId}`}
@@ -110,14 +135,24 @@ function AgentCard({ agent, agentUrl, getChainColor }: { agent: RecentAgent; age
   );
 }
 
-export function RecentAgents() {
+interface RecentAgentsProps {
+  chainIdFilter?: number;
+}
+
+export function RecentAgents({ chainIdFilter }: RecentAgentsProps = {}) {
   const [agents, setAgents] = useState<RecentAgent[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchRecentAgents = async () => {
       try {
-        const response = await fetch('/api/recent-agents?limit=12');
+        // If filtering by chain, fetch more agents (100), otherwise fetch 12
+        const limit = chainIdFilter ? 100 : 12;
+        const url = chainIdFilter 
+          ? `/api/recent-agents?limit=${limit}&chainId=${chainIdFilter}`
+          : `/api/recent-agents?limit=${limit}`;
+        
+        const response = await fetch(url);
         if (response.ok) {
           const data = await response.json() as { agents: RecentAgent[] };
           setAgents(data.agents || []);
@@ -130,7 +165,7 @@ export function RecentAgents() {
     };
 
     fetchRecentAgents();
-  }, []);
+  }, [chainIdFilter]);
 
   if (loading) {
     return (
@@ -164,16 +199,36 @@ export function RecentAgents() {
     return null;
   }
 
+  const filteredCount = agents.length;
+  const chainName = chainIdFilter ? CHAIN_NAMES[chainIdFilter] : null;
+  const title = chainIdFilter ? `Agents on ${chainName}` : 'Recent Agents';
+
   return (
     <div className="mb-8">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold">Recent Agents</h2>
-        <Link href="/?q=">
-          <Button variant="ghost" size="sm">
-            View All
-            <ChevronRight className="h-4 w-4 ml-1" />
-          </Button>
-        </Link>
+        <div>
+          <h2 className="text-2xl font-bold">{title}</h2>
+          {chainName && (
+            <p className="text-sm text-muted-foreground mt-1">
+              Showing {filteredCount} agent{filteredCount !== 1 ? 's' : ''} on {chainName}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {chainIdFilter && (
+            <Link href="/">
+              <Button variant="ghost" size="sm">
+                Clear Filter
+              </Button>
+            </Link>
+          )}
+          <Link href="/search">
+            <Button variant="ghost" size="sm">
+              View All
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </Link>
+        </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {agents.map((agent) => {
