@@ -6,6 +6,8 @@ import { PineconeVectorStore } from './utils/providers/pinecone-vector-store.js'
 import { VeniceEmbeddingProvider } from './utils/providers/venice-embedding.js';
 import { D1SemanticSyncStateStore } from './utils/d1-sync-state-store.js';
 import { SyncLockManager } from './utils/sync-lock.js';
+import { SyncLogger } from './utils/sync-logger.js';
+import { SyncEventLogger } from './utils/sync-event-logger.js';
 
 /**
  * Queue consumer handler for processing chain sync operations
@@ -102,7 +104,7 @@ async function processChainSync(
   const chainIdStr = String(chainId);
   const batchSize = message.batchSize || 50;
   
-  console.log(`[queue] Starting chain sync for chain ${chainId} (batch size: ${batchSize})`);
+  console.log(`[queue] Starting chain sync for chain ${chainId} (batch size: ${batchSize}, logId: ${message.logId || 'none'})`);
 
   // Check for concurrent sync using lock manager
   const lockManager = new SyncLockManager(env.DB);
@@ -123,6 +125,12 @@ async function processChainSync(
       throw new Error(`Sync already in progress for chain ${chainId}`);
     }
   }
+
+  // Track statistics for this chain sync
+  let agentsIndexed = 0;
+  let agentsDeleted = 0;
+  let batchesProcessed = 0;
+  let syncError: string | undefined;
 
   try {
     // Create sync state store
@@ -160,6 +168,9 @@ async function processChainSync(
       },
     });
 
+    // Create event logger for detailed event tracking
+    const eventLogger = message.logId ? new SyncEventLogger(env.DB) : null;
+
     // Create sync runner for this chain
     const targets = message.subgraphUrl
       ? [{ chainId, subgraphUrl: message.subgraphUrl }]
@@ -170,6 +181,52 @@ async function processChainSync(
       stateStore,
       logger: (event: string, extra?: Record<string, unknown>) => {
         console.log(`[queue:chain-${chainId}] ${event}`, extra ?? {});
+        
+        // Track statistics from log events
+        if (event === 'semantic-sync:batch-processed' && extra) {
+          batchesProcessed++;
+          if (typeof extra.indexed === 'number') {
+            agentsIndexed += extra.indexed;
+          }
+          if (typeof extra.deleted === 'number') {
+            agentsDeleted += extra.deleted;
+          }
+
+          // Log detailed event if we have a logId (fire-and-forget, don't block)
+          if (eventLogger && message.logId) {
+            eventLogger.logEvent({
+              syncLogId: message.logId,
+              chainId,
+              eventType: 'batch-processed',
+              timestamp: new Date().toISOString(),
+              agentsIndexed: typeof extra.indexed === 'number' ? extra.indexed : 0,
+              agentsDeleted: typeof extra.deleted === 'number' ? extra.deleted : 0,
+              agentIdsIndexed: Array.isArray(extra.agentIds) ? extra.agentIds.map(String) : undefined,
+              agentIdsDeleted: Array.isArray(extra.agentIdsDeleted) ? extra.agentIdsDeleted.map(String) : undefined,
+              lastUpdatedAt: typeof extra.lastUpdatedAt === 'string' ? extra.lastUpdatedAt : undefined,
+            }).catch((error) => {
+              console.error(`[queue] Failed to log detailed event:`, error);
+              // Don't throw - event logging failure shouldn't break the sync
+            });
+          }
+        } else if (event === 'semantic-sync:no-op' && eventLogger && message.logId) {
+          // Only log no-op events from processChain(), not from run()
+          // processChain() logs with chainId, run() logs with chains array
+          // We only want to log the per-chain no-op, not the overall summary
+          if (extra?.chainId && !extra?.chains) {
+            eventLogger.logEvent({
+              syncLogId: message.logId,
+              chainId,
+              eventType: 'no-op',
+              timestamp: new Date().toISOString(),
+              agentsIndexed: 0,
+              agentsDeleted: 0,
+              lastUpdatedAt: typeof extra.lastUpdatedAt === 'string' ? extra.lastUpdatedAt : undefined,
+            }).catch((error) => {
+              console.error(`[queue] Failed to log no-op event:`, error);
+            });
+          }
+        }
       },
       targets,
     };
@@ -183,10 +240,155 @@ async function processChainSync(
     await runner.run();
     
     const duration = Date.now() - startTime;
-    console.log(`[queue] Chain sync completed for chain ${chainId} (duration: ${duration}ms)`);
+    console.log(`[queue] Chain sync completed for chain ${chainId} (duration: ${duration}ms)`, {
+      agentsIndexed,
+      agentsDeleted,
+      batchesProcessed,
+    });
+  } catch (error) {
+    syncError = error instanceof Error ? error.message : String(error);
+    console.error(`[queue] Chain sync failed for chain ${chainId}:`, syncError);
+    
+    // Log error event if we have a logId
+    if (message.logId) {
+      try {
+        const eventLogger = new SyncEventLogger(env.DB);
+        await eventLogger.logEvent({
+          syncLogId: message.logId,
+          chainId,
+          eventType: 'error',
+          timestamp: new Date().toISOString(),
+          agentsIndexed: 0,
+          agentsDeleted: 0,
+          errorMessage: syncError,
+        });
+      } catch (logError) {
+        console.error(`[queue] Failed to log error event:`, logError);
+      }
+    }
+    
+    throw error; // Re-throw to trigger retry logic
   } finally {
     // Always release the lock, even if sync failed
     await lockManager.releaseLock(chainIdStr);
     console.log(`[queue] Released lock for chain ${chainId}`);
+
+    // Update sync log if logId was provided
+    if (message.logId) {
+      try {
+        // Get current log entry to check chains and stats
+        const currentLog = await env.DB.prepare(
+          'SELECT chains, agents_indexed, agents_deleted, batches_processed, status FROM sync_logs WHERE id = ?'
+        )
+          .bind(message.logId)
+          .first<{ 
+            chains: string; 
+            agents_indexed: number; 
+            agents_deleted: number; 
+            batches_processed: number;
+            status: string;
+          }>();
+
+        if (currentLog) {
+          // Parse chains array from JSON
+          const expectedChains = JSON.parse(currentLog.chains) as number[];
+          
+          // Add this chain's stats to the existing totals
+          const totalAgentsIndexed = currentLog.agents_indexed + agentsIndexed;
+          const totalAgentsDeleted = currentLog.agents_deleted + agentsDeleted;
+          const totalBatchesProcessed = currentLog.batches_processed + batchesProcessed;
+
+          // Check if this chain was in the expected chains list
+          const chainIndex = expectedChains.indexOf(chainId);
+          const isExpectedChain = chainIndex >= 0;
+
+          // Update the log with aggregated stats using atomic increment
+          // Use SQL to atomically add to existing values to handle concurrent updates
+          await env.DB.prepare(
+            'UPDATE sync_logs SET agents_indexed = agents_indexed + ?, agents_deleted = agents_deleted + ?, batches_processed = batches_processed + ? WHERE id = ?'
+          )
+            .bind(agentsIndexed, agentsDeleted, batchesProcessed, message.logId)
+            .run();
+
+          // If there was an error, mark the log as error
+          if (syncError) {
+            await env.DB.prepare(
+              'UPDATE sync_logs SET status = ?, error_message = ? WHERE id = ?'
+            )
+              .bind('error', syncError, message.logId)
+              .run();
+          }
+
+          // Check if all chains have completed by counting distinct chains in events
+          // Only check if this chain completed successfully (no error)
+          if (!syncError) {
+            const completedChainsResult = await env.DB.prepare(
+              'SELECT COUNT(DISTINCT chain_id) as completed_count FROM sync_log_events WHERE sync_log_id = ? AND event_type != ?'
+            )
+              .bind(message.logId, 'error')
+              .first<{ completed_count: number }>();
+
+            const completedChains = completedChainsResult?.completed_count || 0;
+            const expectedChainsCount = expectedChains.length;
+
+            console.log(`[queue] Chain ${chainId} completed. Progress: ${completedChains}/${expectedChainsCount} chains`);
+
+            // If all expected chains have completed, mark the log as success
+            if (completedChains >= expectedChainsCount) {
+              const logger = new SyncLogger(env.DB);
+              
+              // Get final stats
+              const finalLog = await env.DB.prepare(
+                'SELECT agents_indexed, agents_deleted, batches_processed FROM sync_logs WHERE id = ?'
+              )
+                .bind(message.logId)
+                .first<{ 
+                  agents_indexed: number; 
+                  agents_deleted: number; 
+                  batches_processed: number;
+                }>();
+
+              if (finalLog) {
+                await logger.completeLog(message.logId, 'success', {
+                  agentsIndexed: finalLog.agents_indexed,
+                  agentsDeleted: finalLog.agents_deleted,
+                  batchesProcessed: finalLog.batches_processed,
+                });
+                console.log(`[queue] ✅ Marked sync log ${message.logId} as success - all chains completed`);
+              }
+            }
+          }
+
+          // Get updated totals for logging
+          const updatedLog = await env.DB.prepare(
+            'SELECT agents_indexed, agents_deleted, batches_processed, status FROM sync_logs WHERE id = ?'
+          )
+            .bind(message.logId)
+            .first<{ 
+              agents_indexed: number; 
+              agents_deleted: number; 
+              batches_processed: number;
+              status: string;
+            }>();
+
+          console.log(`[queue] Updated sync log ${message.logId} for chain ${chainId}`, {
+            chainStats: { agentsIndexed, agentsDeleted, batchesProcessed },
+            totalStats: updatedLog ? {
+              agentsIndexed: updatedLog.agents_indexed,
+              agentsDeleted: updatedLog.agents_deleted,
+              batchesProcessed: updatedLog.batches_processed,
+            } : null,
+            isExpectedChain,
+            syncError: syncError || null,
+            logStatus: updatedLog?.status,
+          });
+        } else {
+          console.warn(`[queue] Sync log ${message.logId} not found, cannot update stats`);
+        }
+      } catch (logError) {
+        console.error(`[queue] Failed to update sync log ${message.logId}:`, logError);
+        // Don't throw - logging failure shouldn't fail the sync
+      }
+    }
   }
 }

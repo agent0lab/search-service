@@ -1,5 +1,5 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import type { RequestLog, IndexingLog, WhitelistEntry, DashboardStats } from './types';
+import type { RequestLog, IndexingLog, WhitelistEntry, DashboardStats, SyncLogEvent, SyncLogEventEntry } from './types';
 
 export class D1Client {
   constructor(private db: D1Database) {}
@@ -216,6 +216,34 @@ export class D1Client {
       .prepare('DELETE FROM admin_whitelist WHERE wallet_address = LOWER(?)')
       .bind(address)
       .run();
+  }
+
+  // Sync Log Events
+  async getSyncLogEvents(syncLogId: number): Promise<SyncLogEventEntry[]> {
+    const result = await this.db
+      .prepare(
+        'SELECT id, sync_log_id, chain_id, event_type, timestamp, agents_indexed, agents_deleted, agent_ids_indexed, agent_ids_deleted, last_updated_at, error_message FROM sync_log_events WHERE sync_log_id = ? ORDER BY timestamp ASC'
+      )
+      .bind(syncLogId)
+      .all<SyncLogEvent>();
+
+    if (!result.success || !result.results) {
+      return [];
+    }
+
+    return result.results.map((row) => ({
+      id: row.id,
+      syncLogId: row.sync_log_id,
+      chainId: row.chain_id,
+      eventType: row.event_type as 'batch-processed' | 'no-op' | 'error',
+      timestamp: row.timestamp,
+      agentsIndexed: row.agents_indexed,
+      agentsDeleted: row.agents_deleted,
+      agentIdsIndexed: row.agent_ids_indexed ? (JSON.parse(row.agent_ids_indexed) as string[]) : undefined,
+      agentIdsDeleted: row.agent_ids_deleted ? (JSON.parse(row.agent_ids_deleted) as string[]) : undefined,
+      lastUpdatedAt: row.last_updated_at || undefined,
+      errorMessage: row.error_message || undefined,
+    }));
   }
 }
 

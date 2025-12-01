@@ -43,29 +43,26 @@ export async function scheduled(controller: ScheduledController, env: Env, ctx: 
 
     // Queue a sync message for each chain
     // The queue consumer will handle all the work: subgraph paging, embeddings, upserting
+    // Pass logId so the consumer can update the sync log with stats
     const queuePromises = chains.map(async (chainId) => {
       const message: ChainSyncMessage = {
         type: 'chain-sync',
         chainId: String(chainId), // Convert to string for queue message
         batchSize: 50, // Can be configured per chain if needed
+        logId: logId || undefined, // Pass logId to queue consumer
       };
       
       await env.INDEXING_QUEUE.send(message);
-      console.log(`[CRON] Queued sync for chain ${chainId}`);
+      console.log(`[CRON] Queued sync for chain ${chainId} (logId: ${logId})`);
     });
 
     await Promise.all(queuePromises);
     
     const duration = Date.now() - startTime;
 
-    // Log queuing completion (actual sync happens in queue consumer)
-    if (logId !== null) {
-      await logger.completeLog(logId, 'success', {
-        agentsIndexed: 0, // Will be updated by queue consumer
-        agentsDeleted: 0,
-        batchesProcessed: 0,
-      });
-    }
+    // Don't complete the log here - let the queue consumer update it with actual stats
+    // The log will remain in 'in_progress' status until all chains complete
+    console.log('[CRON] Queued all sync messages, log will be updated by queue consumer');
 
     console.log('[CRON] Queued sync messages for all chains', {
       chains: chains.length,
