@@ -70,6 +70,35 @@ export interface DashboardStats {
   lastSyncTime: string | null;
 }
 
+// Sync log event types
+export interface SyncLogEvent {
+  id: number;
+  sync_log_id: number;
+  chain_id: number;
+  event_type: 'batch-processed' | 'no-op' | 'error';
+  timestamp: string;
+  agents_indexed: number;
+  agents_deleted: number;
+  agent_ids_indexed: string | null; // JSON string
+  agent_ids_deleted: string | null; // JSON string
+  last_updated_at: string | null;
+  error_message: string | null;
+}
+
+export interface SyncLogEventEntry {
+  id: number;
+  syncLogId: number;
+  chainId: number;
+  eventType: 'batch-processed' | 'no-op' | 'error';
+  timestamp: string;
+  agentsIndexed: number;
+  agentsDeleted: number;
+  agentIdsIndexed?: string[];
+  agentIdsDeleted?: string[];
+  lastUpdatedAt?: string;
+  errorMessage?: string;
+}
+
 // Session types
 export interface Session {
   address: string;

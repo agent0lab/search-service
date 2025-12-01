@@ -34,6 +34,7 @@ export interface ChainSyncMessage {
   chainId: string;
   batchSize?: number; // Optional, defaults to 50
   subgraphUrl?: string; // Optional, for custom subgraph URLs
+  logId?: number; // Optional, sync log ID to update with stats
 }
 
 /**

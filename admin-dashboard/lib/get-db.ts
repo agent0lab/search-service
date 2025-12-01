@@ -42,14 +42,18 @@ class D1Adapter {
     return { logs, total };
   }
 
-  async getIndexingStats() {
-    const stats = await this.d1Client.getDashboardStats('30d');
-    return {
-      totalIndexed: stats.totalAgentsIndexed,
-      totalDeleted: stats.totalAgentsDeleted,
-      lastSync: stats.lastSyncTime,
-    };
-  }
+      async getIndexingStats() {
+        const stats = await this.d1Client.getDashboardStats('30d');
+        return {
+          totalIndexed: stats.totalAgentsIndexed,
+          totalDeleted: stats.totalAgentsDeleted,
+          lastSync: stats.lastSyncTime,
+        };
+      }
+
+      async getSyncLogEvents(syncLogId: number) {
+        return this.d1Client.getSyncLogEvents(syncLogId);
+      }
 
   async getWhitelist() {
     return this.d1Client.getWhitelist();
