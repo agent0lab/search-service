@@ -15,39 +15,6 @@ const RPC_URLS: Record<number, string> = {
   80002: 'https://rpc-amoy.polygon.technology', // Polygon Amoy
 };
 
-interface SubgraphAgent {
-  id: string;
-  chainId: string;
-  agentId: string;
-  owner: string;
-  operators: string[];
-  agentURI?: string;
-  createdAt: string;
-  updatedAt: string;
-  registrationFile?: {
-    id: string;
-    agentId: string;
-    name: string;
-    description: string;
-    image?: string;
-    active: boolean;
-    x402support: boolean;
-    supportedTrusts: string[];
-    mcpEndpoint?: string;
-    mcpVersion?: string;
-    a2aEndpoint?: string;
-    a2aVersion?: string;
-    ens?: string;
-    did?: string;
-    agentWallet?: string;
-    agentWalletChainId?: number;
-    mcpTools: string[];
-    mcpPrompts: string[];
-    mcpResources: string[];
-    a2aSkills: string[];
-  };
-}
-
 interface AgentSummary {
   chainId: number;
   agentId: string;
@@ -74,47 +41,6 @@ interface AgentSummary {
   mcpVersion?: string;
   a2aEndpoint?: string;
   a2aVersion?: string;
-}
-
-function normalizeAddress(address: string): string {
-  return address.toLowerCase();
-}
-
-function transformAgent(agent: SubgraphAgent): AgentSummary {
-  const chainId = parseInt(agent.chainId || '0', 10);
-  const agentIdStr = agent.id || `${chainId}:${agent.agentId || '0'}`;
-  const regFile = agent.registrationFile;
-  const operators = (agent.operators || []).map((op: string) => 
-    typeof op === 'string' ? normalizeAddress(op) : op
-  );
-
-  return {
-    chainId,
-    agentId: agentIdStr,
-    name: regFile?.name || '',
-    image: regFile?.image || undefined,
-    description: regFile?.description || '',
-    owners: agent.owner ? [normalizeAddress(agent.owner)] : [],
-    operators,
-    mcp: !!regFile?.mcpEndpoint,
-    a2a: !!regFile?.a2aEndpoint,
-    ens: regFile?.ens || undefined,
-    did: regFile?.did || undefined,
-    walletAddress: regFile?.agentWallet ? normalizeAddress(regFile.agentWallet) : undefined,
-    supportedTrusts: regFile?.supportedTrusts || [],
-    a2aSkills: regFile?.a2aSkills || [],
-    mcpTools: regFile?.mcpTools || [],
-    mcpPrompts: regFile?.mcpPrompts || [],
-    mcpResources: regFile?.mcpResources || [],
-    active: regFile?.active ?? false,
-    x402support: regFile?.x402support ?? false,
-    extras: {},
-    // Include endpoint details
-    mcpEndpoint: regFile?.mcpEndpoint || undefined,
-    mcpVersion: regFile?.mcpVersion || undefined,
-    a2aEndpoint: regFile?.a2aEndpoint || undefined,
-    a2aVersion: regFile?.a2aVersion || undefined,
-  };
 }
 
 async function querySubgraph(subgraphUrl: string, query: string, variables: Record<string, unknown>): Promise<unknown> {
@@ -177,9 +103,9 @@ export async function GET(
     // Initialize SDK (read-only, no signer needed)
     // SDK will use HTTP gateways for IPFS URIs if IPFS is not configured
     const sdk = new SDK({
-      chainId: chainId as any,
+      chainId: chainId as 11155111 | 84532 | 80002,
       rpcUrl: rpcUrl || 'https://eth.llamarpc.com', // Fallback RPC
-      subgraphOverrides: { [chainId]: subgraphUrl } as any,
+      subgraphOverrides: { [chainId]: subgraphUrl } as Record<number, string>,
     });
 
     // SDK uses format "chainId:tokenId" (e.g., "84532:1062")
@@ -254,7 +180,10 @@ export async function GET(
         const agent = await sdk.loadAgent(formattedAgentId);
         
         // Check if the registration file has an agentCard in metadata
-        const registrationFile = (agent as any).registrationFile;
+        // Use unknown first to safely access properties
+        const agentUnknown = agent as unknown;
+        const agentWithRegistration = agentUnknown as { registrationFile?: { metadata?: { agentCard?: unknown } } };
+        const registrationFile = agentWithRegistration.registrationFile;
         if (registrationFile?.metadata?.agentCard) {
           agentCard = registrationFile.metadata.agentCard;
           console.log('Found agentCard in registration file metadata');
@@ -289,7 +218,7 @@ export async function GET(
                       }
                     }
                   }
-                } catch (err) {
+                } catch {
                   continue;
                 }
               }
@@ -355,8 +284,8 @@ export async function GET(
     console.log('Returning agent data:', {
       hasAgentCard: !!response.agentCard,
       agentCardKeys: response.agentCard ? Object.keys(response.agentCard) : [],
-      skills: (response.agentCard as any)?.skills?.length || 0,
-      capabilities: !!(response.agentCard as any)?.capabilities,
+      skills: (response.agentCard as { skills?: unknown[] })?.skills?.length || 0,
+      capabilities: !!(response.agentCard as { capabilities?: unknown })?.capabilities,
       agentURI: response.agentURI,
     });
     

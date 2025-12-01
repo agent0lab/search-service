@@ -4,7 +4,6 @@ import { Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import Link from 'next/link';
 import { LiquidEtherBackground } from '@/components/LiquidEtherBackground';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
@@ -123,19 +122,19 @@ export default function ApiDocsPage() {
                   </div>
                   <div className="flex items-start gap-2">
                     <Badge variant="outline" className="font-mono">capabilities</Badge>
-                    <span className="text-muted-foreground">- Array of capability strings (e.g., ["defi", "nft"])</span>
+                    <span className="text-muted-foreground">- Array of capability strings (e.g., [&quot;defi&quot;, &quot;nft&quot;])</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <Badge variant="outline" className="font-mono">tags</Badge>
-                    <span className="text-muted-foreground">- Array of trust model tags (e.g., ["reputation", "crypto-economic"])</span>
+                    <span className="text-muted-foreground">- Array of trust model tags (e.g., [&quot;reputation&quot;, &quot;crypto-economic&quot;])</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <Badge variant="outline" className="font-mono">defaultInputMode</Badge>
-                    <span className="text-muted-foreground">- Filter by input mode (e.g., "text", "json", "image")</span>
+                    <span className="text-muted-foreground">- Filter by input mode (e.g., &quot;text&quot;, &quot;json&quot;, &quot;image&quot;)</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <Badge variant="outline" className="font-mono">defaultOutputMode</Badge>
-                    <span className="text-muted-foreground">- Filter by output mode (e.g., "text", "json", "image")</span>
+                    <span className="text-muted-foreground">- Filter by output mode (e.g., &quot;text&quot;, &quot;json&quot;, &quot;image&quot;)</span>
                   </div>
                 </div>
               </div>
@@ -182,7 +181,7 @@ export default function ApiDocsPage() {
                 <h3 className="font-semibold mb-3">Basic Search</h3>
                 <CodeBlock code={BASIC_EXAMPLE} title="Basic search example" />
                 <p className="text-sm text-muted-foreground mt-2">
-                  This example performs a simple semantic search for agents related to "AI agent for trading".
+                  This example performs a simple semantic search for agents related to &quot;AI agent for trading&quot;.
                 </p>
               </div>
 

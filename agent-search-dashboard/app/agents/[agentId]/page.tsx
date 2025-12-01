@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, ExternalLink, CheckCircle2, XCircle, User, CheckCircle, Code, Users, Copy, Network, Shield, Info, Settings, BookOpen, Zap, Tag, FileText, Globe, Building2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, ExternalLink, CheckCircle2, XCircle, User, Code, Users, Copy, Network, Shield, Info, Settings, Zap, Tag, FileText, Globe, Building2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -90,7 +90,6 @@ interface AgentSummary {
 
 export default function AgentDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const agentId = decodeURIComponent(params.agentId as string);
   
   const [agent, setAgent] = useState<AgentSummary | null>(null);
@@ -177,11 +176,6 @@ export default function AgentDetailPage() {
     };
     return colors[trust.toLowerCase()] || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
   };
-
-  const formatAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
-  };
-
 
   if (loading) {
     return (
@@ -596,7 +590,7 @@ export default function AgentDetailPage() {
                       </CardHeader>
                       <CardContent>
                         <div className="flex flex-wrap gap-2">
-                          {Object.entries(agent.agentCard.securitySchemes).map(([schemeName, scheme]) => {
+                          {Object.entries(agent.agentCard.securitySchemes).map(([schemeName]) => {
                             const isRequired = agent.agentCard?.security?.some(sec => sec[schemeName]);
                             
                             return (
@@ -854,7 +848,7 @@ export default function AgentDetailPage() {
                           <CardTitle className="text-lg">Skill Tags</CardTitle>
                         </div>
                         <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                          All tags associated with this agent's skills.
+                          All tags associated with this agent&apos;s skills.
                         </p>
                       </CardHeader>
                       <CardContent>
@@ -1383,7 +1377,7 @@ export default function AgentDetailPage() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {Object.entries(agent.agentCard.securitySchemes).map(([schemeName, scheme]) => {
-                        const schemeData = scheme as any;
+                        const schemeData = scheme as Record<string, unknown>;
                         const isRequired = agent.agentCard?.security?.some(sec => sec[schemeName]);
                         
                         return (
@@ -1402,33 +1396,33 @@ export default function AgentDetailPage() {
                             </div>
                             
                             <div className="space-y-2">
-                              {schemeData.type && (
+                              {schemeData.type != null && (
                                 <div className="flex items-center gap-2 text-xs">
                                   <span className="font-medium text-muted-foreground min-w-[80px]">Type:</span>
-                                  <Badge variant="outline" className="text-xs">{schemeData.type}</Badge>
+                                  <Badge variant="outline" className="text-xs">{String(schemeData.type)}</Badge>
                                 </div>
                               )}
-                              {schemeData.scheme && (
+                              {schemeData.scheme != null && (
                                 <div className="flex items-center gap-2 text-xs">
                                   <span className="font-medium text-muted-foreground min-w-[80px]">Scheme:</span>
-                                  <Badge variant="outline" className="text-xs">{schemeData.scheme}</Badge>
+                                  <Badge variant="outline" className="text-xs">{String(schemeData.scheme)}</Badge>
                                 </div>
                               )}
-                              {schemeData.in && (
+                              {schemeData.in != null && (
                                 <div className="flex items-center gap-2 text-xs">
                                   <span className="font-medium text-muted-foreground min-w-[80px]">Location:</span>
-                                  <Badge variant="outline" className="text-xs">{schemeData.in}</Badge>
+                                  <Badge variant="outline" className="text-xs">{String(schemeData.in)}</Badge>
                                 </div>
                               )}
-                              {schemeData.name && (
+                              {schemeData.name != null && (
                                 <div className="flex items-center gap-2 text-xs">
                                   <span className="font-medium text-muted-foreground min-w-[80px]">Name:</span>
-                                  <span className="font-mono text-xs">{schemeData.name}</span>
+                                  <span className="font-mono text-xs">{String(schemeData.name)}</span>
                                 </div>
                               )}
-                              {schemeData.description && (
+                              {schemeData.description != null && (
                                 <div className="pt-2 border-t border-slate-700">
-                                  <p className="text-xs text-muted-foreground leading-relaxed">{schemeData.description}</p>
+                                  <p className="text-xs text-muted-foreground leading-relaxed">{String(schemeData.description)}</p>
                                 </div>
                               )}
                             </div>

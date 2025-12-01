@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, TrendingUp, Network, Globe } from 'lucide-react';
+import { Users, TrendingUp, Network } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface StatsData {

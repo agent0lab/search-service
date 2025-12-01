@@ -18,7 +18,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Skeleton } from '@/components/ui/skeleton';
 import { searchAgents } from '@/lib/search-client';
 import type { SemanticSearchResult, SemanticSearchFilters } from '@/lib/types';
-import Link from 'next/link';
 import { AgentCard } from '@/components/agent/AgentCard';
 import { LiquidEtherBackground } from '@/components/LiquidEtherBackground';
 import { Header } from '@/components/Header';

@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import Link from 'next/link';
 import { StatsDashboard } from '@/components/StatsDashboard';
 import { RecentAgents } from '@/components/RecentAgents';
 import { LiquidEtherBackground } from '@/components/LiquidEtherBackground';

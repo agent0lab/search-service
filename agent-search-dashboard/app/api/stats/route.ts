@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 // Default subgraph URLs (matching agent0-sdk)
 const DEFAULT_SUBGRAPH_URLS: Record<number, string> = {
@@ -66,7 +66,7 @@ async function querySubgraph(subgraphUrl: string, query: string, variables: Reco
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const stats: StatsResponse = {
       totalAgents: 0,

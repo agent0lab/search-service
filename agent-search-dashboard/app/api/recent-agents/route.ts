@@ -21,17 +21,6 @@ interface SubgraphAgent {
   } | null;
 }
 
-interface RecentAgent {
-  agentId: string;
-  chainId: number;
-  name: string;
-  image?: string;
-  description: string;
-  createdAt: string;
-  active: boolean;
-  agentURI?: string;
-}
-
 async function querySubgraph(subgraphUrl: string, query: string, variables: Record<string, unknown>): Promise<unknown> {
   const response = await fetch(subgraphUrl, {
     method: 'POST',
