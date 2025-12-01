@@ -91,7 +91,7 @@ export function AgentCard({ result, agentImage, getChainName, formatAgentId, age
 
   return (
     <Link href={agentUrl} className="block h-full">
-      <Card className="h-full hover:shadow-xl hover:shadow-primary/20 transition-all duration-300 cursor-pointer group border-2 hover:border-primary/50 hover:-translate-y-1 bg-slate-900/60 backdrop-blur-sm border-slate-800/50">
+      <Card className="h-full hover:shadow-xl hover:shadow-primary/20 transition-all duration-300 cursor-pointer group border-2 hover:border-primary/50 hover:-translate-y-1 bg-slate-900/40 backdrop-blur-md border-slate-800/40">
         <CardContent className="p-4">
           {/* Header with Image and Basic Info */}
           <div className="flex items-start gap-3 mb-3">

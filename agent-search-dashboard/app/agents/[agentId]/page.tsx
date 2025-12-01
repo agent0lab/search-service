@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
+import { LiquidEtherBackground } from '@/components/LiquidEtherBackground';
 
 interface AgentCardSkill {
   id?: string;
@@ -183,35 +185,39 @@ export default function AgentDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <div className="min-h-screen relative flex flex-col">
+        <LiquidEtherBackground />
         <Header />
-        <div className="flex items-center justify-center min-h-[calc(100vh-80px)]">
+        <div className="flex items-center justify-center min-h-[calc(100vh-80px)] flex-1 relative z-10">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-muted-foreground">Loading agent details...</p>
           </div>
         </div>
+        <Footer />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <div className="min-h-screen relative flex flex-col">
+        <LiquidEtherBackground />
         <Header />
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-8 flex-1 relative z-10">
           <Link href={backUrl}>
-            <Button variant="ghost" className="mb-4 gap-2 text-muted-foreground hover:text-foreground hover:bg-slate-800/50">
+            <Button variant="ghost" className="mb-4 gap-2 text-muted-foreground hover:text-foreground hover:bg-slate-800/40">
               <ArrowLeft className="h-4 w-4" />
               {backUrl === '/search' ? 'Back to Search' : 'Back to Home'}
             </Button>
           </Link>
-          <Card className="border-destructive bg-slate-800/50">
+          <Card className="border-destructive bg-slate-900/40 backdrop-blur-md border-slate-800/40">
             <CardContent className="p-6">
               <p className="text-destructive">{error}</p>
             </CardContent>
           </Card>
         </div>
+        <Footer />
       </div>
     );
   }
@@ -221,19 +227,23 @@ export default function AgentDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen relative flex flex-col">
+      <LiquidEtherBackground />
       <Header />
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 flex-1 relative z-10">
         <Link href={backUrl}>
-          <Button variant="ghost" className="mb-6 gap-2 text-muted-foreground hover:text-foreground hover:bg-slate-800/50">
-            <ArrowLeft className="h-4 w-4" />
-            {backUrl === '/search' ? 'Back to Search' : 'Back to Home'}
+          <Button 
+            variant="ghost" 
+            className="mb-6 gap-2 text-muted-foreground hover:text-foreground hover:bg-slate-800/70 border border-transparent hover:border-slate-700 transition-all duration-200 active:scale-95 group"
+          >
+            <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-1" />
+            <span className="font-medium">{backUrl === '/search' ? 'Back to Search' : 'Back to Home'}</span>
           </Button>
         </Link>
 
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Hero Header */}
-          <div className="bg-slate-800/50 rounded-lg border border-slate-700 p-6">
+          <div className="bg-slate-900/40 backdrop-blur-md rounded-lg border border-slate-800/40 p-6">
             <div className="flex items-start gap-6">
               {agent.image ? (
                 <div className="flex-shrink-0">
@@ -347,7 +357,7 @@ export default function AgentDetailPage() {
           {/* Tabs for organized content */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <div className="w-full mb-6">
-              <TabsList className="inline-flex h-10 items-center justify-center rounded-md bg-slate-800/50 p-1 text-muted-foreground gap-1 border border-slate-700">
+              <TabsList className="inline-flex h-10 items-center justify-center rounded-md bg-slate-900/40 backdrop-blur-md p-1 text-muted-foreground gap-1 border border-slate-800/40">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 {((agent.agentCard?.skills && agent.agentCard.skills.length > 0) || (agent.a2aSkills && agent.a2aSkills.length > 0) || (agent.mcpTools && agent.mcpTools.length > 0)) ? (
                   <TabsTrigger value="skills">Skills</TabsTrigger>
@@ -368,7 +378,7 @@ export default function AgentDetailPage() {
             <TabsContent value="overview" className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Information */}
-                <Card className="h-fit bg-slate-800/50 border-slate-700">
+                <Card className="h-fit bg-slate-900/40 backdrop-blur-md border-slate-800/40">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-lg">Information</CardTitle>
                   </CardHeader>
@@ -528,7 +538,7 @@ export default function AgentDetailPage() {
                 <div className="space-y-6">
                   {/* Provider & Documentation - Combined */}
                   {(agent.agentCard?.provider || agent.agentCard?.documentationUrl) && (
-                    <Card className="bg-slate-800/50 border-slate-700">
+                    <Card className="bg-slate-900/40 backdrop-blur-md border-slate-800/40">
                       <CardHeader className="pb-3">
                         <div className="flex items-center gap-2">
                           <Building2 className="h-4 w-4" />
@@ -577,7 +587,7 @@ export default function AgentDetailPage() {
 
                   {/* Security Schemes Summary */}
                   {agent.agentCard?.securitySchemes && Object.keys(agent.agentCard.securitySchemes).length > 0 && (
-                    <Card className="bg-slate-800/50 border-slate-700">
+                    <Card className="bg-slate-900/40 backdrop-blur-md border-slate-800/40">
                       <CardHeader className="pb-3">
                         <div className="flex items-center gap-2">
                           <Shield className="h-4 w-4" />
@@ -606,7 +616,7 @@ export default function AgentDetailPage() {
                   )}
                   {/* Trust Models */}
                   {agent.supportedTrusts && agent.supportedTrusts.length > 0 && (
-                    <Card className="h-fit bg-slate-800/50 border-slate-700">
+                    <Card className="h-fit bg-slate-900/40 backdrop-blur-md border-slate-800/40">
                       <CardHeader className="pb-3">
               <div className="flex items-center gap-2">
                           <Shield className="h-4 w-4" />
@@ -643,7 +653,7 @@ export default function AgentDetailPage() {
 
                   {/* Owners */}
                   {agent.owners && agent.owners.length > 0 && (
-            <Card className="bg-slate-800/50 border-slate-700">
+            <Card className="bg-slate-900/40 backdrop-blur-md border-slate-800/40">
                       <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
                           <User className="h-4 w-4" />
@@ -692,7 +702,7 @@ export default function AgentDetailPage() {
 
               {/* Operators */}
               {agent.operators && agent.operators.length > 0 && (
-                <Card className="mt-6 bg-slate-800/50 border-slate-700">
+                <Card className="mt-6 bg-slate-900/40 backdrop-blur-md border-slate-800/40">
                   <CardHeader className="pb-3">
                     <div className="flex items-center gap-2">
                       <Settings className="h-4 w-4" />
@@ -739,7 +749,7 @@ export default function AgentDetailPage() {
 
               {/* Endpoints */}
               {((agent.mcp && agent.mcpEndpoint) || (agent.a2a && agent.a2aEndpoint)) && (
-            <Card className="bg-slate-800/50 border-slate-700">
+            <Card className="bg-slate-900/40 backdrop-blur-md border-slate-800/40">
                   <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
                       <Settings className="h-4 w-4" />
@@ -837,7 +847,7 @@ export default function AgentDetailPage() {
                     .filter((tag, index, self) => self.indexOf(tag) === index); // Remove duplicates
                   
                   return allTags.length > 0 ? (
-                    <Card className="bg-slate-800/50 border-slate-700">
+                    <Card className="bg-slate-900/40 backdrop-blur-md border-slate-800/40">
                       <CardHeader className="pb-3">
                         <div className="flex items-center gap-2">
                           <Tag className="h-4 w-4" />
@@ -862,7 +872,7 @@ export default function AgentDetailPage() {
 
                 {/* Agent Card Skills - Full Details */}
                 {agent.agentCard?.skills && agent.agentCard.skills.length > 0 && (
-                  <Card className="bg-slate-800/50 border-slate-700">
+                  <Card className="bg-slate-900/40 backdrop-blur-md border-slate-800/40">
                     <CardHeader className="pb-3">
                       <div className="flex items-center gap-2">
                         <Zap className="h-4 w-4" />
@@ -874,7 +884,7 @@ export default function AgentDetailPage() {
                     </CardHeader>
                     <CardContent className="space-y-6">
                       {agent.agentCard.skills.map((skill, idx) => (
-                        <div key={skill.id || idx} className="p-6 bg-slate-900/50 rounded-lg border border-slate-700 hover:bg-slate-900/70 transition-colors">
+                        <div key={skill.id || idx} className="p-6 bg-slate-900/30 rounded-lg border border-slate-800/40 hover:bg-slate-900/70 transition-colors">
                           <div className="space-y-4">
                             {/* Skill Header */}
                             <div>
@@ -923,7 +933,7 @@ export default function AgentDetailPage() {
                                 </div>
                                 <div className="space-y-2">
                                   {skill.examples.map((example, exIdx) => (
-                                    <div key={exIdx} className="p-3 bg-slate-800/50 rounded border-l-2 border-primary/50 text-sm font-mono">
+                                    <div key={exIdx} className="p-3 bg-slate-800/40 rounded border-l-2 border-primary/50 text-sm font-mono">
                                       {example}
                                     </div>
                                   ))}
@@ -969,7 +979,7 @@ export default function AgentDetailPage() {
 
                 {/* A2A Skills - Fallback */}
                 {!agent.agentCard?.skills && agent.a2aSkills && agent.a2aSkills.length > 0 && (
-                  <Card className="bg-slate-800/50 border-slate-700">
+                  <Card className="bg-slate-900/40 backdrop-blur-md border-slate-800/40">
                     <CardHeader className="pb-3">
                       <div className="flex items-center gap-2">
                         <Users className="h-4 w-4" />
@@ -988,7 +998,7 @@ export default function AgentDetailPage() {
                         const isSkillId = skill.includes('/') || skill.includes('_') || skill.includes('-');
                         
                         return (
-                          <div key={idx} className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 hover:bg-slate-900/70 transition-colors">
+                          <div key={idx} className="p-4 bg-slate-900/30 rounded-lg border border-slate-800/40 hover:bg-slate-900/70 transition-colors">
                             <div className="flex items-start gap-3">
                               <Badge variant="outline" className="text-xs">
                                 <Zap className="h-3 w-3 mr-1" />
@@ -1010,7 +1020,7 @@ export default function AgentDetailPage() {
 
                 {/* MCP Tools - Fallback */}
                 {agent.mcpTools && agent.mcpTools.length > 0 && (
-                  <Card className="bg-slate-800/50 border-slate-700">
+                  <Card className="bg-slate-900/40 backdrop-blur-md border-slate-800/40">
                     <CardHeader className="pb-3">
                       <div className="flex items-center gap-2">
                         <Code className="h-4 w-4" />
@@ -1022,7 +1032,7 @@ export default function AgentDetailPage() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {agent.mcpTools.map((tool, idx) => (
-                        <div key={idx} className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 hover:bg-slate-900/70 transition-colors">
+                        <div key={idx} className="p-4 bg-slate-900/30 rounded-lg border border-slate-800/40 hover:bg-slate-900/70 transition-colors">
                           <div className="flex items-start gap-3">
                             <Badge variant="outline" className="text-xs">
                               <Code className="h-3 w-3 mr-1" />
@@ -1041,7 +1051,7 @@ export default function AgentDetailPage() {
             {/* Capabilities Tab */}
             {agent.agentCard?.capabilities && (
               <TabsContent value="capabilities" className="space-y-6">
-                <Card className="bg-slate-800/50 border-slate-700">
+                <Card className="bg-slate-900/40 backdrop-blur-md border-slate-800/40">
                   <CardHeader className="pb-3">
                     <div className="flex items-center gap-2">
                       <Zap className="h-4 w-4" />
@@ -1057,7 +1067,7 @@ export default function AgentDetailPage() {
                       <div className="text-sm font-medium mb-3">Protocol Features</div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         {agent.agentCard.capabilities.streaming && (
-                          <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-700">
+                          <div className="p-3 bg-slate-900/30 rounded-lg border border-slate-800/40">
                             <div className="flex items-center gap-2 mb-1">
                               <CheckCircle2 className="h-4 w-4 text-green-500" />
                               <span className="text-sm font-medium">Streaming</span>
@@ -1066,7 +1076,7 @@ export default function AgentDetailPage() {
                           </div>
                         )}
                         {agent.agentCard.capabilities.pushNotifications && (
-                          <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-700">
+                          <div className="p-3 bg-slate-900/30 rounded-lg border border-slate-800/40">
                             <div className="flex items-center gap-2 mb-1">
                               <CheckCircle2 className="h-4 w-4 text-green-500" />
                               <span className="text-sm font-medium">Push Notifications</span>
@@ -1075,7 +1085,7 @@ export default function AgentDetailPage() {
                           </div>
                         )}
                         {agent.agentCard.capabilities.stateTransitionHistory && (
-                          <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-700">
+                          <div className="p-3 bg-slate-900/30 rounded-lg border border-slate-800/40">
                             <div className="flex items-center gap-2 mb-1">
                               <CheckCircle2 className="h-4 w-4 text-green-500" />
                               <span className="text-sm font-medium">State Transition History</span>
@@ -1092,7 +1102,7 @@ export default function AgentDetailPage() {
                         <div className="text-sm font-medium mb-3">Extensions</div>
                         <div className="space-y-4">
                           {agent.agentCard.capabilities.extensions.map((extension, idx) => (
-                            <div key={idx} className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                            <div key={idx} className="p-4 bg-slate-900/30 rounded-lg border border-slate-800/40">
                               <div className="space-y-3">
                                 {extension.uri && (
                                   <div className="flex items-start justify-between gap-3">
@@ -1181,7 +1191,7 @@ export default function AgentDetailPage() {
               <TabsContent value="protocol" className="space-y-6">
                 {/* Endpoints - already shown in Overview, but show here too for completeness */}
                 {((agent.mcp && agent.mcpEndpoint) || (agent.a2a && agent.a2aEndpoint)) && (
-                  <Card className="bg-slate-800/50 border-slate-700">
+                  <Card className="bg-slate-900/40 backdrop-blur-md border-slate-800/40">
                     <CardHeader className="pb-3">
                       <div className="flex items-center gap-2">
                         <Settings className="h-4 w-4" />
@@ -1270,7 +1280,7 @@ export default function AgentDetailPage() {
 
                 {/* Agent URI */}
                 {agent.agentURI && (
-                  <Card className="bg-slate-800/50 border-slate-700">
+                  <Card className="bg-slate-900/40 backdrop-blur-md border-slate-800/40">
                     <CardHeader className="pb-3">
                       <div className="flex items-center gap-2">
                         <Globe className="h-4 w-4" />
@@ -1307,7 +1317,7 @@ export default function AgentDetailPage() {
 
                 {/* Protocol Information */}
                 {(agent.agentCard?.protocolVersion || agent.agentCard?.preferredTransport || agent.agentCard?.version || agent.agentCard?.url) && (
-                  <Card className="bg-slate-800/50 border-slate-700">
+                  <Card className="bg-slate-900/40 backdrop-blur-md border-slate-800/40">
                     <CardHeader className="pb-3">
                       <div className="flex items-center gap-2">
                         <Info className="h-4 w-4" />
@@ -1363,7 +1373,7 @@ export default function AgentDetailPage() {
 
                 {/* Security Schemes */}
                 {agent.agentCard?.securitySchemes && Object.keys(agent.agentCard.securitySchemes).length > 0 && (
-                  <Card className="bg-slate-800/50 border-slate-700">
+                  <Card className="bg-slate-900/40 backdrop-blur-md border-slate-800/40">
                     <CardHeader className="pb-3">
                       <div className="flex items-center gap-2">
                         <Shield className="h-4 w-4" />
@@ -1377,7 +1387,7 @@ export default function AgentDetailPage() {
                         const isRequired = agent.agentCard?.security?.some(sec => sec[schemeName]);
                         
                         return (
-                          <div key={schemeName} className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+                          <div key={schemeName} className="p-4 bg-slate-900/30 rounded-lg border border-slate-800/40">
                             <div className="flex items-start justify-between gap-3 mb-2">
                               <div className="flex items-center gap-2">
                                 <Shield className="h-4 w-4 text-primary" />
@@ -1434,7 +1444,7 @@ export default function AgentDetailPage() {
             {/* Metadata Tab */}
             {agent.extras && Object.keys(agent.extras).length > 0 && (
               <TabsContent value="metadata" className="space-y-6">
-                <Card className="bg-slate-800/50 border-slate-700">
+                <Card className="bg-slate-900/40 backdrop-blur-md border-slate-800/40">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-lg">Additional Metadata</CardTitle>
                   </CardHeader>
@@ -1458,6 +1468,8 @@ export default function AgentDetailPage() {
           </Tabs>
         </div>
       </div>
+      
+      <Footer />
     </div>
   );
 }

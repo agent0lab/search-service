@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { LiquidEtherBackground } from '@/components/LiquidEtherBackground';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 import { useState } from 'react';
 
 const API_ENDPOINT = 'https://agent0-semantic-search.dawid-pisarczyk.workers.dev/api/search';
@@ -60,11 +61,11 @@ function CodeBlock({ code, title }: { code: string; title: string }) {
 
 export default function ApiDocsPage() {
   return (
-    <div className="min-h-screen relative">
+    <div className="min-h-screen relative flex flex-col">
       <LiquidEtherBackground />
       <Header />
 
-      <div className="container mx-auto px-4 py-8 relative z-10 max-w-4xl">
+      <div className="container mx-auto px-4 py-8 relative z-10 max-w-4xl flex-1">
         <div className="space-y-6">
           <div>
             <h1 className="text-4xl font-bold mb-4">Search API Documentation</h1>
@@ -232,6 +233,8 @@ export default function ApiDocsPage() {
           </Card>
         </div>
       </div>
+      
+      <Footer />
     </div>
   );
 }

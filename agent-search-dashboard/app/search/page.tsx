@@ -22,6 +22,7 @@ import Link from 'next/link';
 import { AgentCard } from '@/components/agent/AgentCard';
 import { LiquidEtherBackground } from '@/components/LiquidEtherBackground';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 
 const STORAGE_KEY = 'agent-search-state';
 
@@ -425,7 +426,7 @@ function SearchContent() {
   };
 
   return (
-    <div className="min-h-screen relative">
+    <div className="min-h-screen relative flex flex-col">
       <LiquidEtherBackground />
       <Header />
 
@@ -920,7 +921,7 @@ function SearchContent() {
             {/* Table View */}
             {viewMode === 'table' && (
               <div className="overflow-x-auto">
-                <Card className="bg-slate-900/60 backdrop-blur-sm border-slate-800/50">
+                <Card className="bg-slate-900/40 backdrop-blur-md border-slate-800/40">
                   <CardContent className="p-0">
                     <Table>
                       <TableHeader>
@@ -1194,6 +1195,8 @@ function SearchContent() {
           </Card>
         )}
       </div>
+      
+      <Footer />
     </div>
   );
 }

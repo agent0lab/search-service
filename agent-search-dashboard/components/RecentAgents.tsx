@@ -66,7 +66,7 @@ function AgentCard({ agent, agentUrl, getChainColor }: { agent: RecentAgent; age
 
   return (
     <Link href={agentUrl} className="block h-full">
-      <Card className="h-full hover:shadow-lg transition-all duration-200 cursor-pointer group border-2 hover:border-primary/50">
+      <Card className="h-full hover:shadow-lg transition-all duration-200 cursor-pointer group border-2 hover:border-primary/50 bg-slate-900/40 backdrop-blur-md border-slate-800/40">
         <CardContent className="p-4">
           <div className="flex items-start gap-3 mb-3">
             {agent.image && !imageError ? (

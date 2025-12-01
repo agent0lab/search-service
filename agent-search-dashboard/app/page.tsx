@@ -10,6 +10,7 @@ import { StatsDashboard } from '@/components/StatsDashboard';
 import { RecentAgents } from '@/components/RecentAgents';
 import { LiquidEtherBackground } from '@/components/LiquidEtherBackground';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 
 function HomeContent() {
   const searchParams = useSearchParams();
@@ -37,11 +38,11 @@ function HomeContent() {
   };
 
   return (
-    <div className="min-h-screen relative">
+    <div className="min-h-screen relative flex flex-col">
       <LiquidEtherBackground />
       <Header />
 
-      <div className="container mx-auto px-4 py-8 relative z-10">
+      <div className="container mx-auto px-4 py-8 relative z-10 flex-1">
         {/* Search Bar - At the top */}
         <div className="mb-6">
           <div className="flex gap-3 items-center">
@@ -60,8 +61,8 @@ function HomeContent() {
               onClick={handleSearch} 
               className="h-11 px-6 transition-all hover:scale-105 active:scale-95 shadow-md hover:shadow-lg"
             >
-              <Search className="h-4 w-4 mr-2" />
-              Search
+                  <Search className="h-4 w-4 mr-2" />
+                  Search
             </Button>
           </div>
         </div>
@@ -72,6 +73,8 @@ function HomeContent() {
         {/* Recent Agents Section */}
         <RecentAgents chainIdFilter={chainIdFilter} />
       </div>
+      
+      <Footer />
     </div>
   );
 }

@@ -111,7 +111,7 @@ export function StatsDashboard({ activeChainId }: StatsDashboardProps = {}) {
     <div className="mb-8 space-y-6">
       {/* Main Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Card className="hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 hover:-translate-y-1 border-2 hover:border-primary/30 cursor-pointer group bg-slate-900/60 backdrop-blur-sm border-slate-800/50">
+        <Card className="hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 hover:-translate-y-1 border-2 hover:border-primary/30 cursor-pointer group bg-slate-900/40 backdrop-blur-md border-slate-800/40">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium group-hover:text-primary transition-colors">Total Agents</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors group-hover:scale-110" />
@@ -126,7 +126,7 @@ export function StatsDashboard({ activeChainId }: StatsDashboardProps = {}) {
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 hover:-translate-y-1 border-2 hover:border-primary/30 cursor-pointer group bg-slate-900/60 backdrop-blur-sm border-slate-800/50">
+        <Card className="hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 hover:-translate-y-1 border-2 hover:border-primary/30 cursor-pointer group bg-slate-900/40 backdrop-blur-md border-slate-800/40">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium group-hover:text-primary transition-colors">Growth Rate (7d)</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors group-hover:scale-110" />
@@ -141,7 +141,7 @@ export function StatsDashboard({ activeChainId }: StatsDashboardProps = {}) {
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 hover:-translate-y-1 border-2 hover:border-primary/30 cursor-pointer group bg-slate-900/60 backdrop-blur-sm border-slate-800/50">
+        <Card className="hover:shadow-lg hover:shadow-primary/20 transition-all duration-300 hover:-translate-y-1 border-2 hover:border-primary/30 cursor-pointer group bg-slate-900/40 backdrop-blur-md border-slate-800/40">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium group-hover:text-primary transition-colors">Recent (24h)</CardTitle>
             <Network className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors group-hover:scale-110" />
@@ -159,7 +159,7 @@ export function StatsDashboard({ activeChainId }: StatsDashboardProps = {}) {
 
       {/* Chain Breakdown */}
       {chainBreakdown.length > 0 && (
-        <Card>
+        <Card className="bg-slate-900/40 backdrop-blur-md border-slate-800/40">
           <CardHeader>
             <CardTitle className="text-sm font-medium">Agents by Network</CardTitle>
           </CardHeader>
