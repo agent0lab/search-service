@@ -100,81 +100,112 @@ export async function GET(
       );
     }
 
-    // Initialize SDK (read-only, no signer needed)
-    // SDK will use HTTP gateways for IPFS URIs if IPFS is not configured
-    const sdk = new SDK({
-      chainId: chainId as 11155111 | 84532 | 80002,
-      rpcUrl: rpcUrl || 'https://eth.llamarpc.com', // Fallback RPC
-      subgraphOverrides: { [chainId]: subgraphUrl } as Record<number, string>,
-    });
-
     // SDK uses format "chainId:tokenId" (e.g., "84532:1062")
     const formattedAgentId = `${chainId}:${tokenIdStr}`;
     
-    // Get agent summary from SDK
-    const sdkAgentSummary = await sdk.getAgent(formattedAgentId);
+    // Query subgraph directly (avoiding SDK's incompatible subgraph client in Workers)
+    // Note: owners and operators are not available in the subgraph schema,
+    // they would need to be fetched from the blockchain via RPC calls
+    const agentQuery = `
+      query GetAgent($agentId: String!) {
+        agent(id: $agentId) {
+          id
+          chainId
+          agentId
+          agentURI
+          registrationFile {
+            name
+            description
+            image
+            active
+            mcpEndpoint
+            a2aEndpoint
+            mcpVersion
+            a2aVersion
+          }
+        }
+      }
+    `;
     
-    if (!sdkAgentSummary) {
+    const subgraphData = await querySubgraph(subgraphUrl, agentQuery, { agentId: formattedAgentId }) as { 
+      agent: { 
+        id?: string;
+        chainId?: string;
+        agentId?: string;
+        agentURI?: string;
+        registrationFile?: { 
+          name?: string;
+          description?: string;
+          image?: string;
+          active?: boolean;
+          mcpEndpoint?: string;
+          a2aEndpoint?: string;
+          mcpVersion?: string;
+          a2aVersion?: string;
+        } | null;
+      } | null;
+    };
+    
+    if (!subgraphData.agent) {
       return NextResponse.json(
         { error: `Agent ${agentId} not found` },
         { status: 404 }
       );
     }
-
-    // Transform SDK AgentSummary to our format
-    const agentSummary: AgentSummary = {
-      chainId: sdkAgentSummary.chainId,
-      agentId: sdkAgentSummary.agentId,
-      name: sdkAgentSummary.name,
-      image: sdkAgentSummary.image,
-      description: sdkAgentSummary.description,
-      owners: sdkAgentSummary.owners,
-      operators: sdkAgentSummary.operators,
-      mcp: sdkAgentSummary.mcp,
-      a2a: sdkAgentSummary.a2a,
-      ens: sdkAgentSummary.ens,
-      did: sdkAgentSummary.did,
-      walletAddress: sdkAgentSummary.walletAddress,
-      supportedTrusts: sdkAgentSummary.supportedTrusts,
-      a2aSkills: sdkAgentSummary.a2aSkills,
-      mcpTools: sdkAgentSummary.mcpTools,
-      mcpPrompts: sdkAgentSummary.mcpPrompts,
-      mcpResources: sdkAgentSummary.mcpResources,
-      active: sdkAgentSummary.active,
-      x402support: sdkAgentSummary.x402support,
-      extras: sdkAgentSummary.extras,
-    };
-
-    // Get agentURI and endpoints from SDK's subgraph client
-    // Since SDK's getAgent doesn't return agentURI, we'll use the SDK's subgraph client
-    const subgraphClient = sdk.subgraphClient;
-    if (!subgraphClient) {
-      return NextResponse.json(
-        { error: 'Subgraph client not available' },
-        { status: 500 }
-      );
-    }
     
-    // Use SDK's subgraph client to query for agentURI and endpoints
-    const subgraphQuery = `
-      query GetAgentURI($agentId: String!) {
-        agent(id: $agentId) {
-          agentURI
-          registrationFile {
-            mcpEndpoint
-            a2aEndpoint
-          }
-        }
-      }
-    `;
-    const subgraphData = await querySubgraph(subgraphUrl, subgraphQuery, { agentId: formattedAgentId }) as { agent: { agentURI?: string; registrationFile?: { mcpEndpoint?: string; a2aEndpoint?: string } } | null };
-    const agentURI = subgraphData.agent?.agentURI;
-    const mcpEndpoint = subgraphData.agent?.registrationFile?.mcpEndpoint;
-    const a2aEndpoint = subgraphData.agent?.registrationFile?.a2aEndpoint;
+    const agent = subgraphData.agent;
+    const registrationFile = agent.registrationFile;
+    const agentURI = agent.agentURI;
+    const mcpEndpoint = registrationFile?.mcpEndpoint;
+    const a2aEndpoint = registrationFile?.a2aEndpoint;
+    
+    // Build agent summary from subgraph data
+    // Note: owners, operators, ens, did, walletAddress need to be fetched from blockchain via RPC
+    // supportedTrusts, a2aSkills, mcpTools, etc. will be populated from registration file
+    const agentSummary: AgentSummary = {
+      chainId: parseInt(agent.chainId || chainId.toString(), 10),
+      agentId: agent.agentId || formattedAgentId,
+      name: registrationFile?.name || 'Unnamed Agent',
+      image: registrationFile?.image,
+      description: registrationFile?.description || '',
+      owners: [], // Not available in subgraph, would need RPC call
+      operators: [], // Not available in subgraph, would need RPC call
+      mcp: !!mcpEndpoint,
+      a2a: !!a2aEndpoint,
+      ens: undefined, // Would need RPC call to resolve
+      did: undefined, // Would need RPC call to resolve
+      walletAddress: undefined, // Would need RPC call to resolve
+      supportedTrusts: [], // Will be populated from registration file
+      a2aSkills: [], // Will be populated from registration file
+      mcpTools: [], // Will be populated from registration file
+      mcpPrompts: [], // Will be populated from registration file
+      mcpResources: [], // Will be populated from registration file
+      active: registrationFile?.active ?? false,
+      x402support: false, // Will be populated from registration file
+      extras: {},
+      mcpEndpoint,
+      mcpVersion: registrationFile?.mcpVersion,
+      a2aEndpoint,
+      a2aVersion: registrationFile?.a2aVersion,
+    };
+    
+    // Initialize SDK only for loadAgent (which uses fetch internally, not the subgraph client)
+    // We avoid using sdk.getAgent() because it uses the SDK's subgraph client which has compatibility issues
+    let sdk: SDK | null = null;
+    try {
+      const rpcUrl = RPC_URLS[chainId];
+      sdk = new SDK({
+        chainId: chainId as 11155111 | 84532 | 80002,
+        rpcUrl: rpcUrl || 'https://eth.llamarpc.com', // Fallback RPC
+        subgraphOverrides: { [chainId]: subgraphUrl } as Record<number, string>,
+      });
+    } catch (error) {
+      console.warn('Failed to initialize SDK, will skip loadAgent:', error);
+    }
     
     // Use SDK's loadAgent to fetch the registration file and potentially the agent card
     let agentCard = null;
-    if (agentURI) {
+    if (agentURI && sdk) {
       try {
         // Use SDK's loadAgent - it will handle IPFS, HTTP, etc. using HTTP gateways if IPFS not configured
         const agent = await sdk.loadAgent(formattedAgentId);
