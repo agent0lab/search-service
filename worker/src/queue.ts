@@ -1,7 +1,7 @@
 import type { MessageBatch } from '@cloudflare/workers-types';
 import type { Env, ChainSyncMessage } from './types.js';
-import { SDK } from 'agent0-ts/index.js';
-import { SemanticSyncRunner, type SemanticSyncRunnerOptions } from 'agent0-ts/semantic-search/index.js';
+import { SDK } from 'agent0-sdk';
+import { SemanticSyncRunner, type SemanticSyncRunnerOptions } from './utils/semantic-sync-runner.js';
 import { PineconeVectorStore } from './utils/providers/pinecone-vector-store.js';
 import { VeniceEmbeddingProvider } from './utils/providers/venice-embedding.js';
 import { D1SemanticSyncStateStore } from './utils/d1-sync-state-store.js';
@@ -22,7 +22,7 @@ export async function queue(
 
   // Deduplicate messages for the same chain - only process the first one for each chain
   const chainSyncMap = new Map<string, typeof batch.messages[0]>();
-  const otherMessages: typeof batch.messages = [];
+  const otherMessages: Array<typeof batch.messages[0]> = [];
 
   for (const message of batch.messages) {
     const body = message.body;
@@ -158,14 +158,11 @@ async function processChainSync(
       throw new Error(`Failed to initialize Pinecone for chain ${chainId}: ${errorMessage}`);
     }
 
-    // Initialize SDK with the chain
+    // Initialize SDK (optional, mainly for subgraph URL resolution if needed)
     const sdk = new SDK({
       chainId,
       rpcUrl: env.RPC_URL,
-      semanticSearch: {
-        embedding: embeddingProvider,
-        vectorStore: pineconeStore,
-      },
+      ...(message.subgraphUrl ? { subgraphOverrides: { [chainId]: message.subgraphUrl } } : {}),
     });
 
     // Create event logger for detailed event tracking
@@ -179,6 +176,8 @@ async function processChainSync(
     const options: SemanticSyncRunnerOptions = {
       batchSize,
       stateStore,
+      embeddingProvider,
+      vectorStoreProvider: pineconeStore,
       logger: (event: string, extra?: Record<string, unknown>) => {
         console.log(`[queue:chain-${chainId}] ${event}`, extra ?? {});
         
@@ -209,29 +208,20 @@ async function processChainSync(
               // Don't throw - event logging failure shouldn't break the sync
             });
           }
-        } else if (event === 'semantic-sync:no-op' && eventLogger && message.logId) {
-          // Only log no-op events from processChain(), not from run()
-          // processChain() logs with chainId, run() logs with chains array
-          // We only want to log the per-chain no-op, not the overall summary
-          if (extra?.chainId && !extra?.chains) {
-            eventLogger.logEvent({
-              syncLogId: message.logId,
-              chainId,
-              eventType: 'no-op',
-              timestamp: new Date().toISOString(),
-              agentsIndexed: 0,
-              agentsDeleted: 0,
-              lastUpdatedAt: typeof extra.lastUpdatedAt === 'string' ? extra.lastUpdatedAt : undefined,
-            }).catch((error) => {
-              console.error(`[queue] Failed to log no-op event:`, error);
-            });
+        } else if (event === 'semantic-sync:chain-complete' && extra) {
+          // Track final stats from chain completion
+          if (typeof extra.indexed === 'number') {
+            agentsIndexed += extra.indexed;
+          }
+          if (typeof extra.deleted === 'number') {
+            agentsDeleted += extra.deleted;
           }
         }
       },
       targets,
     };
 
-    const runner = new SemanticSyncRunner(sdk, options);
+    const runner = new SemanticSyncRunner(options, sdk);
 
     // Run the full sync for this chain
     console.log(`[queue] Running full sync for chain ${chainId}...`);
