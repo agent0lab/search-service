@@ -3,8 +3,15 @@ import type { D1Database } from '@cloudflare/workers-types';
 import type { Env } from '../types.js';
 import { createErrorResponse, ErrorCode } from '../utils/errors.js';
 
-const DEFAULT_REQUESTS_PER_MINUTE = 100;
+const DEFAULT_REQUESTS_PER_MINUTE = 6;
 const WINDOW_SIZE_MS = 60 * 1000; // 1 minute
+
+/**
+ * Calculate reset timestamp (Unix epoch seconds)
+ */
+function getResetTimestamp(windowStart: Date): number {
+  return Math.ceil((windowStart.getTime() + WINDOW_SIZE_MS) / 1000);
+}
 
 /**
  * Get client IP address from request
@@ -52,7 +59,7 @@ export async function rateLimitMiddleware(c: Context<{ Bindings: Env }>, next: N
     }
 
     const now = new Date();
-    const windowStart = new Date(now.getTime() - WINDOW_SIZE_MS);
+    const windowStartThreshold = new Date(now.getTime() - WINDOW_SIZE_MS);
     const expiresAt = new Date(now.getTime() + WINDOW_SIZE_MS);
 
     // Get or create rate limit entry for this IP
@@ -63,29 +70,42 @@ export async function rateLimitMiddleware(c: Context<{ Bindings: Env }>, next: N
 
     let requestCount: number;
     let shouldUpdateWindow = false;
+    let actualWindowStart: Date;
 
     if (existing) {
       const existingWindowStart = new Date(existing.window_start);
 
       // Check if we're still in the same window
-      if (existingWindowStart >= windowStart) {
+      if (existingWindowStart >= windowStartThreshold) {
         // Same window - increment count
         requestCount = existing.request_count + 1;
+        actualWindowStart = existingWindowStart;
       } else {
         // New window - reset count
         requestCount = 1;
         shouldUpdateWindow = true;
+        actualWindowStart = now;
       }
     } else {
       // First request from this IP
       requestCount = 1;
       shouldUpdateWindow = true;
+      actualWindowStart = now;
     }
+
+    // Calculate remaining requests and reset timestamp
+    const remaining = Math.max(0, DEFAULT_REQUESTS_PER_MINUTE - requestCount);
+    const resetTimestamp = getResetTimestamp(actualWindowStart);
+
+    // Add rate limit headers
+    c.header('X-RateLimit-Limit', DEFAULT_REQUESTS_PER_MINUTE.toString());
+    c.header('X-RateLimit-Remaining', remaining.toString());
+    c.header('X-RateLimit-Reset', resetTimestamp.toString());
 
     // Check if limit exceeded
     if (requestCount > DEFAULT_REQUESTS_PER_MINUTE) {
       const retryAfter = Math.ceil(
-        (WINDOW_SIZE_MS - (now.getTime() - (existing ? new Date(existing.window_start).getTime() : now.getTime()))) / 1000
+        (WINDOW_SIZE_MS - (now.getTime() - actualWindowStart.getTime())) / 1000
       );
 
       c.header('Retry-After', retryAfter.toString());
@@ -108,10 +128,10 @@ export async function rateLimitMiddleware(c: Context<{ Bindings: Env }>, next: N
         .bind(
           ipAddress,
           requestCount,
-          now.toISOString(),
+          actualWindowStart.toISOString(),
           expiresAt.toISOString(),
           requestCount,
-          now.toISOString(),
+          actualWindowStart.toISOString(),
           expiresAt.toISOString()
         )
         .run();

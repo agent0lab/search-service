@@ -7,6 +7,13 @@ import { searchHandler } from './routes/search.js';
 import { validateSearchRequest } from './middleware/validation.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { createErrorResponse, ErrorCode } from './utils/errors.js';
+// Import v1 routes
+import { capabilitiesHandler } from './routes/v1/capabilities.js';
+import { healthHandlerV1 } from './routes/v1/health.js';
+import { searchHandlerV1 } from './routes/v1/search.js';
+import { schemasHandler } from './routes/v1/schemas.js';
+import { validateSearchRequestV1 } from './middleware/validation-v1.js';
+import { requestIdMiddleware } from './middleware/request-id.js';
 // Import the scheduled handler implementation
 import { scheduled as scheduledHandlerImpl } from './scheduled.js';
 // Import the queue handler implementation
@@ -29,13 +36,13 @@ app.use('*', async (c, next) => {
     return c.json({}, 200, {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, X-API-Version, X-Request-ID',
     });
   }
   await next();
   c.header('Access-Control-Allow-Origin', '*');
   c.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  c.header('Access-Control-Allow-Headers', 'Content-Type');
+  c.header('Access-Control-Allow-Headers', 'Content-Type, X-API-Version, X-Request-ID');
 });
 
 // Error handling middleware
@@ -46,11 +53,24 @@ app.onError((err, c) => {
   return c.json(errorResponse, status);
 });
 
-// Health check route
+// Legacy routes (maintained for backward compatibility)
 app.get('/health', healthHandler);
-
-// Search route with validation and rate limiting
 app.post('/api/search', rateLimitMiddleware, validateSearchRequest, searchHandler);
+
+// V1 Standard API routes
+const v1 = new Hono<{ Bindings: Env }>();
+
+// Request ID middleware for all v1 routes
+v1.use('*', requestIdMiddleware);
+
+// V1 endpoints
+v1.get('/capabilities', capabilitiesHandler);
+v1.get('/health', healthHandlerV1);
+v1.post('/search', rateLimitMiddleware, validateSearchRequestV1, searchHandlerV1);
+v1.get('/schemas/:endpoint', schemasHandler);
+
+// Mount v1 routes under /api/v1
+app.route('/api/v1', v1);
 
 // 404 handler
 app.notFound((c) => {
