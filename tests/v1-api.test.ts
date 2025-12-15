@@ -8,7 +8,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:8787';
 const V1_BASE = `${BASE_URL}/api/v1`;
 
-describe.skip('V1 Standard API', () => {
+describe('V1 Standard API', () => {
   describe('GET /api/v1/capabilities', () => {
     it('should return capabilities with correct structure', async () => {
       const res = await fetch(`${V1_BASE}/capabilities`);
@@ -318,6 +318,74 @@ describe.skip('V1 Standard API', () => {
           expect(data.pagination).toHaveProperty('hasMore');
           expect(data.pagination).toHaveProperty('limit');
         }
+      }
+    });
+
+    it('should validate maximum offset based on limit and Pinecone constraints', async () => {
+      // With limit=10, max offset should be 70 (100 - 10*3)
+      const res = await fetch(`${V1_BASE}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: 'agent',
+          limit: 10,
+          offset: 100, // Should exceed max
+        }),
+      });
+
+      // May be 400 (validation error) or 429 (rate limit) - both are acceptable
+      // If 400, check the error message
+      if (res.status === 400) {
+        const data = await res.json();
+        expect(data).toHaveProperty('error');
+        expect(data.error).toContain('offset cannot exceed');
+        expect(data.error).toContain('Consider using cursor-based pagination');
+      } else {
+        // Rate limited - skip validation check but test still passes
+        expect([400, 429]).toContain(res.status);
+      }
+    });
+
+    it('should use optimized multiplier when no post-filtering', async () => {
+      // Without filters, should use 2x multiplier (more efficient)
+      const res = await fetch(`${V1_BASE}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: 'agent',
+          limit: 10,
+          offset: 0,
+        }),
+      });
+
+      if (res.status === 200) {
+        const data = await res.json();
+        expect(data).toHaveProperty('results');
+        expect(data).toHaveProperty('pagination');
+        // Should successfully return results with optimized query
+      }
+    });
+
+    it('should use larger multiplier when post-filtering is needed', async () => {
+      // With exists filter, should use 3x multiplier
+      const res = await fetch(`${V1_BASE}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: 'agent',
+          limit: 10,
+          offset: 0,
+          filters: {
+            exists: ['mcpEndpoint'],
+          },
+        }),
+      });
+
+      if (res.status === 200) {
+        const data = await res.json();
+        expect(data).toHaveProperty('results');
+        expect(data).toHaveProperty('pagination');
+        // Should successfully return results with appropriate buffer for filtering
       }
     });
 

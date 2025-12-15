@@ -225,3 +225,12 @@ export interface StandardSearchResponse {
   };
 }
 
+// Error Response (v1)
+export interface StandardErrorResponse {
+  error: string;
+  code: 'VALIDATION_ERROR' | 'RATE_LIMIT_EXCEEDED' | 'INTERNAL_ERROR' | 'BAD_REQUEST' | 'NOT_FOUND';
+  status: number;
+  requestId?: string;
+  timestamp: string;
+}
+

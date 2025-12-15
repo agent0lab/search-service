@@ -17,7 +17,7 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { searchAgents } from '@/lib/search-client';
-import type { StandardSearchResult, StandardSearchResponse, StandardFilters } from '@/lib/types';
+import type { StandardSearchResult, StandardSearchResponse, StandardFilters, StandardSearchRequest } from '@/lib/types';
 import { AgentCard } from '@/components/agent/AgentCard';
 import { LiquidEtherBackground } from '@/components/LiquidEtherBackground';
 import { Header } from '@/components/Header';
@@ -308,7 +308,7 @@ function SearchContent() {
       }
 
       // Build request with pagination
-      const request: any = {
+      const request: StandardSearchRequest = {
         query,
         limit: Math.min(limit, 10), // Max 10
         includeMetadata: true,
@@ -665,7 +665,8 @@ function SearchContent() {
                                   value={equalsFilters.active !== undefined ? String(equalsFilters.active) : 'all'}
                                   onValueChange={(value) => {
                                     if (value === 'all') {
-                                      const { active, ...rest } = equalsFilters;
+                                      const rest = { ...equalsFilters };
+                                      delete rest.active;
                                       setEqualsFilters(rest);
                                     } else {
                                       setEqualsFilters({ ...equalsFilters, active: value === 'true' });
@@ -692,7 +693,8 @@ function SearchContent() {
                                   value={equalsFilters.x402support !== undefined ? String(equalsFilters.x402support) : 'all'}
                                   onValueChange={(value) => {
                                     if (value === 'all') {
-                                      const { x402support, ...rest } = equalsFilters;
+                                      const rest = { ...equalsFilters };
+                                      delete rest.x402support;
                                       setEqualsFilters(rest);
                                     } else {
                                       setEqualsFilters({ ...equalsFilters, x402support: value === 'true' });
@@ -879,7 +881,7 @@ function SearchContent() {
               </DialogContent>
             </Dialog>
             <Button 
-              onClick={handleSearch} 
+              onClick={() => handleSearch(false, 0)} 
               disabled={loading} 
               className="h-11 px-6 transition-all hover:scale-105 active:scale-95 shadow-md hover:shadow-lg"
             >

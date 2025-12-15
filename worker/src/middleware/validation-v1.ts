@@ -89,12 +89,52 @@ export async function validateSearchRequestV1(c: Context<{ Bindings: Env }>, nex
       if (request.offset < 0) {
         return c.json(createError(new Error('offset must be non-negative'), 400, ErrorCode.VALIDATION_ERROR), 400);
       }
+
+      // Validate maximum offset based on Pinecone's topK limit
+      // Since we need to fetch offset + limit * multiplier, and max topK is 100,
+      // we cap offset at a reasonable maximum (e.g., 70 for limit=10 with 3x multiplier)
+      // This prevents inefficient queries that would require fetching >100 results
+      const limit = request.limit ?? 10;
+      const maxOffset = MAX_TOP_K - (limit * 3); // Conservative estimate
+      if (request.offset > maxOffset) {
+        return c.json(
+          createError(
+            new Error(`offset cannot exceed ${maxOffset} (based on limit=${limit} and Pinecone's max topK=${MAX_TOP_K}). Consider using cursor-based pagination for deeper results.`),
+            400,
+            ErrorCode.VALIDATION_ERROR
+          ),
+          400
+        );
+      }
     }
 
     // Validate cursor
     if (request.cursor !== undefined) {
       if (typeof request.cursor !== 'string') {
         return c.json(createError(new Error('cursor must be a string'), 400, ErrorCode.VALIDATION_ERROR), 400);
+      }
+      
+      // Decode cursor to validate offset (if cursor is provided, it takes precedence over offset)
+      try {
+        const cursorJson = atob(request.cursor);
+        const cursorData = JSON.parse(cursorJson) as { offset?: number };
+        if (cursorData.offset !== undefined) {
+          const limit = request.limit ?? 10;
+          const maxOffset = MAX_TOP_K - (limit * 3);
+          if (cursorData.offset > maxOffset) {
+            return c.json(
+              createError(
+                new Error(`Cursor offset cannot exceed ${maxOffset} (based on limit=${limit} and Pinecone's max topK=${MAX_TOP_K})`),
+                400,
+                ErrorCode.VALIDATION_ERROR
+              ),
+              400
+            );
+          }
+        }
+      } catch {
+        // Invalid cursor format - will be handled by pagination decoder
+        // We don't fail here to allow the handler to provide a better error message
       }
     }
 

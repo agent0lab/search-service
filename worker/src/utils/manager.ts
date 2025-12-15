@@ -18,6 +18,7 @@ import type {
 } from './standard-types.js';
 import { transformStandardFiltersToPinecone, applyFieldMapping } from './filter-transformer.js';
 import { getOffset, paginateResults, calculateCursorPagination, encodeCursor } from './pagination.js';
+import { MAX_TOP_K } from '../types.js';
 
 export class SemanticSearchManager {
   private initialized = false;
@@ -205,11 +206,42 @@ export class SemanticSearchManager {
     // Get effective offset (cursor takes precedence)
     const effectiveOffset = getOffset(cursor, offset);
 
-    // Query with a higher topK to account for pagination and post-filtering
-    // We need to fetch enough results to cover: offset + limit (with buffer for filtering)
-    // The 3x multiplier accounts for potential filtering reduction
-    // Capped at 100 (Pinecone's typical max, though this may vary by provider)
-    const queryTopK = Math.min(effectiveOffset + limit * 3, 100);
+    // Optimize multiplier based on filtering needs
+    // If we have post-filtering (exists/notExists) or minScore, we need a larger buffer
+    // because these filters reduce the result set after fetching from Pinecone
+    // Otherwise, we can use a smaller multiplier (2x instead of 3x) for better efficiency
+    const hasPostFiltering = !!postFilter || typeof minScore === 'number';
+    const filterMultiplier = hasPostFiltering ? 3 : 2;
+    
+    // Calculate required topK: offset + limit * multiplier
+    // This ensures we fetch enough results to cover the offset and requested limit,
+    // with a buffer to account for post-filtering that may reduce results
+    const requiredTopK = effectiveOffset + limit * filterMultiplier;
+    
+    // Cap at MAX_TOP_K (100) to respect Pinecone's maximum topK limit
+    // If requiredTopK exceeds MAX_TOP_K, we can't fetch enough results
+    // This should be caught by validation middleware, but we handle it gracefully here too
+    const queryTopK = Math.min(requiredTopK, MAX_TOP_K);
+    
+    // Early return if offset is too large (should be caught by validation, but defensive check)
+    if (effectiveOffset >= MAX_TOP_K) {
+      return {
+        query,
+        results: [],
+        total: 0,
+        pagination: {
+          hasMore: false,
+          limit,
+          offset: effectiveOffset,
+        },
+        requestId: '', // Will be set by handler
+        timestamp: new Date().toISOString(),
+        provider: {
+          name: providerName,
+          version: providerVersion,
+        },
+      };
+    }
 
     const embedding = await this.embeddingProvider.generateEmbedding(query);
     const matches = await this.vectorStore.query({

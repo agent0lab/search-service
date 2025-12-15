@@ -172,11 +172,11 @@ export default function ApiDocsPage() {
                 <div className="space-y-2 text-sm">
                   <div className="flex items-start gap-2">
                     <Badge variant="outline" className="font-mono">equals</Badge>
-                    <span className="text-muted-foreground">- Exact match for field values (e.g., {"{"}"equals": {"{"}"chainId": 11155111{"}"}{"}"})</span>
+                    <span className="text-muted-foreground">- Exact match for field values (e.g., {`{"equals": {"chainId": 11155111}}`})</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <Badge variant="outline" className="font-mono">in</Badge>
-                    <span className="text-muted-foreground">- Field value must be in array (e.g., {"{"}"in": {"{"}"capabilities": ["defi", "nft"]{"}"}{"}"})</span>
+                    <span className="text-muted-foreground">- Field value must be in array (e.g., {`{"in": {"capabilities": ["defi", "nft"]}}`})</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <Badge variant="outline" className="font-mono">notIn</Badge>
