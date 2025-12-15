@@ -314,12 +314,17 @@ function SearchContent() {
         includeMetadata: true,
       };
 
-      // Use cursor if available, otherwise use offset
+      // Use cursor if available, otherwise fall back to offset-based pagination
       if (useCursor && cursor) {
         request.cursor = cursor;
-      } else if (!useCursor) {
-        request.offset = newOffset;
-        setOffset(newOffset);
+      } else {
+        // Fall back to offset-based pagination
+        // If useCursor was true but cursor is null, calculate next offset from current state
+        const effectiveOffset = useCursor && !cursor 
+          ? offset + Math.min(limit, 10) // Next page offset
+          : newOffset;
+        request.offset = effectiveOffset;
+        setOffset(effectiveOffset);
       }
 
       // Only include filters if we have any
