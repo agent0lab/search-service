@@ -206,8 +206,10 @@ export class SemanticSearchManager {
     const effectiveOffset = getOffset(cursor, offset);
 
     // Query with a higher topK to account for pagination and post-filtering
-    // We'll fetch more results than needed to handle post-filtering
-    const queryTopK = Math.min(limit * 3, 100); // Fetch 3x the limit to account for filtering
+    // We need to fetch enough results to cover: offset + limit (with buffer for filtering)
+    // The 3x multiplier accounts for potential filtering reduction
+    // Capped at 100 (Pinecone's typical max, though this may vary by provider)
+    const queryTopK = Math.min(effectiveOffset + limit * 3, 100);
 
     const embedding = await this.embeddingProvider.generateEmbedding(query);
     const matches = await this.vectorStore.query({
@@ -228,6 +230,32 @@ export class SemanticSearchManager {
         const metadata = match.metadata || {};
         return postFilter!(metadata);
       });
+    }
+
+    // Validate that we have enough results for the requested offset
+    // If offset is beyond available results, return empty (this is expected behavior)
+    if (effectiveOffset >= filteredMatches.length) {
+      // Return empty results with correct pagination metadata
+      const pagination = cursor
+        ? calculateCursorPagination(limit, cursor, filteredMatches.length, 0)
+        : {
+            hasMore: false,
+            limit,
+            offset: effectiveOffset,
+          };
+
+      return {
+        query,
+        results: [],
+        total: filteredMatches.length,
+        pagination,
+        requestId: '', // Will be set by handler
+        timestamp: new Date().toISOString(),
+        provider: {
+          name: providerName,
+          version: providerVersion,
+        },
+      };
     }
 
     // Apply pagination

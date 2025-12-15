@@ -10,7 +10,7 @@ import type { SemanticSearchFilters } from './types.js';
  */
 export function transformStandardFiltersToPinecone(
   filters: StandardFilters
-): { pineconeFilter: SemanticSearchFilters; requiresPostFilter: boolean; postFilter?: (metadata: Record<string, unknown>) => boolean } {
+): { pineconeFilter: SemanticSearchFilters | undefined; requiresPostFilter: boolean; postFilter?: (metadata: Record<string, unknown>) => boolean } {
   const pineconeFilter: SemanticSearchFilters = {};
   const existsFields: string[] = [];
   const notExistsFields: string[] = [];
