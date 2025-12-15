@@ -52,3 +52,9 @@ export interface RateLimitConfig {
   windowSizeMs: number;
 }
 
+/**
+ * Provider metadata constants
+ */
+export const PROVIDER_NAME = 'agent0-semantic-search';
+export const PROVIDER_VERSION = '1.0.0';
+

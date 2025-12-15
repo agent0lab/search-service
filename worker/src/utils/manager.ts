@@ -10,6 +10,15 @@ import type {
   VectorStoreProvider,
   VectorUpsertItem,
 } from './interfaces.js';
+import type {
+  StandardSearchRequest,
+  StandardSearchResponse,
+  StandardSearchResult,
+  StandardMetadata,
+} from './standard-types.js';
+import { transformStandardFiltersToPinecone, applyFieldMapping } from './filter-transformer.js';
+import { getOffset, paginateResults, calculateCursorPagination, encodeCursor } from './pagination.js';
+import { MAX_TOP_K } from '../types.js';
 
 export class SemanticSearchManager {
   private initialized = false;
@@ -165,6 +174,185 @@ export class SemanticSearchManager {
       results,
       total: results.length,
       timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Search agents using the standard v1 API format
+   * Supports standard filter operators, pagination, and metadata filtering
+   */
+  async searchAgentsV1(
+    request: StandardSearchRequest,
+    providerName: string,
+    providerVersion: string
+  ): Promise<StandardSearchResponse> {
+    await this.ensureInitialized();
+    const { query, limit = 10, offset, cursor, filters, minScore, includeMetadata = true } = request;
+
+    // Transform standard filters to Pinecone format
+    let pineconeFilters;
+    let postFilter: ((metadata: Record<string, unknown>) => boolean) | undefined;
+    
+    if (filters) {
+      // Apply field mapping
+      const mappedFilters = applyFieldMapping(filters);
+      
+      // Transform to Pinecone format
+      const { pineconeFilter, requiresPostFilter, postFilter: pf } = transformStandardFiltersToPinecone(mappedFilters);
+      pineconeFilters = pineconeFilter;
+      postFilter = pf;
+    }
+
+    // Get effective offset (cursor takes precedence)
+    const effectiveOffset = getOffset(cursor, offset);
+
+    // Optimize multiplier based on filtering needs
+    // If we have post-filtering (exists/notExists) or minScore, we need a larger buffer
+    // because these filters reduce the result set after fetching from Pinecone
+    // Otherwise, we can use a smaller multiplier (2x instead of 3x) for better efficiency
+    const hasPostFiltering = !!postFilter || typeof minScore === 'number';
+    const filterMultiplier = hasPostFiltering ? 3 : 2;
+    
+    // Calculate required topK: offset + limit * multiplier
+    // This ensures we fetch enough results to cover the offset and requested limit,
+    // with a buffer to account for post-filtering that may reduce results
+    const requiredTopK = effectiveOffset + limit * filterMultiplier;
+    
+    // Cap at MAX_TOP_K (100) to respect Pinecone's maximum topK limit
+    // If requiredTopK exceeds MAX_TOP_K, we can't fetch enough results
+    // This should be caught by validation middleware, but we handle it gracefully here too
+    const queryTopK = Math.min(requiredTopK, MAX_TOP_K);
+    
+    // Early return if offset is too large (should be caught by validation, but defensive check)
+    if (effectiveOffset >= MAX_TOP_K) {
+      return {
+        query,
+        results: [],
+        total: 0,
+        pagination: {
+          hasMore: false,
+          limit,
+          offset: effectiveOffset,
+        },
+        requestId: '', // Will be set by handler
+        timestamp: new Date().toISOString(),
+        provider: {
+          name: providerName,
+          version: providerVersion,
+        },
+      };
+    }
+
+    const embedding = await this.embeddingProvider.generateEmbedding(query);
+    const matches = await this.vectorStore.query({
+      vector: embedding,
+      topK: queryTopK,
+      filter: pineconeFilters,
+    });
+
+    // Apply minScore filtering
+    let filteredMatches = matches;
+    if (typeof minScore === 'number') {
+      filteredMatches = matches.filter(match => (match.score ?? 0) >= minScore);
+    }
+
+    // Apply post-filtering for exists/notExists operators
+    if (postFilter) {
+      filteredMatches = filteredMatches.filter(match => {
+        const metadata = match.metadata || {};
+        return postFilter!(metadata);
+      });
+    }
+
+    // Validate that we have enough results for the requested offset
+    // If offset is beyond available results, return empty (this is expected behavior)
+    if (effectiveOffset >= filteredMatches.length) {
+      // Return empty results with correct pagination metadata
+      const pagination = cursor
+        ? calculateCursorPagination(limit, cursor, filteredMatches.length, 0)
+        : {
+            hasMore: false,
+            limit,
+            offset: effectiveOffset,
+          };
+
+      return {
+        query,
+        results: [],
+        total: filteredMatches.length,
+        pagination,
+        requestId: '', // Will be set by handler
+        timestamp: new Date().toISOString(),
+        provider: {
+          name: providerName,
+          version: providerVersion,
+        },
+      };
+    }
+
+    // Apply pagination
+    const paginatedMatches = paginateResults(filteredMatches, effectiveOffset, limit);
+
+    // Build results
+    const results: StandardSearchResult[] = paginatedMatches.map((match, index) => {
+      const { chainId, agentId } = SemanticSearchManager.parseVectorId(match.id);
+      const metadata = match.metadata || {};
+      const name = typeof metadata.name === 'string' ? metadata.name : '';
+      const description = typeof metadata.description === 'string' ? metadata.description : '';
+
+      // Build standard metadata (only if includeMetadata is true)
+      let standardMetadata: StandardMetadata | undefined;
+      if (includeMetadata) {
+        standardMetadata = {
+          ...metadata,
+          agentId,
+          chainId,
+          name,
+          description,
+        } as StandardMetadata;
+      }
+
+      return {
+        rank: effectiveOffset + index + 1,
+        vectorId: match.id,
+        agentId,
+        chainId,
+        name,
+        description,
+        score: match.score ?? 0,
+        metadata: standardMetadata,
+        matchReasons: match.matchReasons,
+      };
+    });
+
+    // Calculate pagination metadata
+    const totalResults = filteredMatches.length; // Approximate total
+    let pagination;
+    
+    if (cursor) {
+      pagination = calculateCursorPagination(limit, cursor, totalResults, results.length);
+    } else {
+      const hasMore = effectiveOffset + results.length < totalResults;
+      const nextOffset = effectiveOffset + results.length;
+      pagination = {
+        hasMore,
+        nextCursor: hasMore ? encodeCursor({ offset: nextOffset }) : undefined,
+        limit,
+        offset: effectiveOffset,
+      };
+    }
+
+    return {
+      query,
+      results,
+      total: totalResults,
+      pagination,
+      requestId: '', // Will be set by handler
+      timestamp: new Date().toISOString(),
+      provider: {
+        name: providerName,
+        version: providerVersion,
+      },
     };
   }
 

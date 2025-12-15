@@ -90,7 +90,6 @@ export async function GET(
     }
 
     // Use SDK to get agent data
-    const rpcUrl = RPC_URLS[chainId];
     const subgraphUrl = DEFAULT_SUBGRAPH_URLS[chainId];
     
     if (!subgraphUrl) {

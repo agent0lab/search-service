@@ -16,6 +16,8 @@ export interface ErrorResponse {
   error: string;
   code?: ErrorCode;
   status: number;
+  requestId?: string;
+  timestamp?: string;
 }
 
 /**
@@ -77,13 +79,16 @@ export function sanitizeErrorMessage(error: unknown): string {
 export function createErrorResponse(
   error: unknown,
   status: number = 500,
-  code?: ErrorCode
+  code?: ErrorCode,
+  requestId?: string
 ): ErrorResponse {
   const message = sanitizeErrorMessage(error);
   return {
     error: message,
     code: code || (status >= 500 ? ErrorCode.INTERNAL_ERROR : ErrorCode.BAD_REQUEST),
     status,
+    requestId,
+    timestamp: new Date().toISOString(),
   };
 }
 

@@ -7,11 +7,11 @@ import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { CheckCircle2, XCircle, Code, Users, Copy, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { SemanticSearchResult } from '@/lib/types';
+import type { StandardSearchResult } from '@/lib/types';
 import { useState } from 'react';
 
 interface AgentCardProps {
-  result: SemanticSearchResult;
+  result: StandardSearchResult;
   agentImage?: string;
   onImageError?: () => void;
   getChainName: (chainId: number) => string;
