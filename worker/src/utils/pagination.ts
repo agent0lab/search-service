@@ -5,18 +5,22 @@ import type { CursorData, PaginationMetadata } from './standard-types.js';
 
 /**
  * Encode cursor data to base64 string
+ * Uses btoa() which is available in Cloudflare Workers
  */
 export function encodeCursor(data: CursorData): string {
   const json = JSON.stringify(data);
-  return Buffer.from(json).toString('base64');
+  // btoa() is available in Cloudflare Workers (Web API)
+  return btoa(json);
 }
 
 /**
  * Decode cursor string to cursor data
+ * Uses atob() which is available in Cloudflare Workers
  */
 export function decodeCursor(cursor: string): CursorData | null {
   try {
-    const json = Buffer.from(cursor, 'base64').toString('utf-8');
+    // atob() is available in Cloudflare Workers (Web API)
+    const json = atob(cursor);
     const data = JSON.parse(json) as CursorData;
     return data;
   } catch (error) {
