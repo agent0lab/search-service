@@ -136,3 +136,92 @@ export interface Session {
   expiresAt: number;
 }
 
+// v1 Standard API Types (Universal Agent Semantic Search API Standard v1.0)
+// Filter Operators
+export interface StandardFilters {
+  equals?: Record<string, unknown>;
+  in?: Record<string, unknown[]>;
+  notIn?: Record<string, unknown[]>;
+  exists?: string[];
+  notExists?: string[];
+}
+
+// Search Request (v1)
+export interface StandardSearchRequest {
+  query: string;
+  limit?: number;
+  offset?: number;
+  cursor?: string;
+  filters?: StandardFilters;
+  minScore?: number;
+  includeMetadata?: boolean;
+}
+
+// Pagination Metadata
+export interface PaginationMetadata {
+  hasMore: boolean;
+  nextCursor?: string;
+  limit: number;
+  offset?: number;
+}
+
+// Search Result (v1)
+export interface StandardSearchResult {
+  rank: number;
+  vectorId: string;
+  agentId: string;
+  chainId: number;
+  name: string;
+  description: string;
+  score: number;
+  metadata?: StandardMetadata;
+  matchReasons?: string[];
+}
+
+// Standard Metadata (AgentRegistrationFile fields)
+export interface StandardMetadata {
+  id?: string;
+  cid?: string;
+  agentId?: string;
+  name?: string;
+  description?: string;
+  image?: string;
+  active?: boolean;
+  x402support?: boolean;
+  supportedTrusts?: string[];
+  mcpEndpoint?: string;
+  mcpVersion?: string;
+  a2aEndpoint?: string;
+  a2aVersion?: string;
+  ens?: string;
+  did?: string;
+  agentWallet?: string;
+  agentWalletChainId?: number;
+  mcpTools?: string[];
+  mcpPrompts?: string[];
+  mcpResources?: string[];
+  a2aSkills?: string[];
+  agentURI?: string;
+  createdAt?: number;
+  // Additional fields from current implementation
+  capabilities?: string[];
+  defaultInputModes?: string[];
+  defaultOutputModes?: string[];
+  tags?: string[];
+  [key: string]: unknown;
+}
+
+// Search Response (v1)
+export interface StandardSearchResponse {
+  query: string;
+  results: StandardSearchResult[];
+  total: number;
+  pagination?: PaginationMetadata;
+  requestId: string;
+  timestamp: string;
+  provider: {
+    name: string;
+    version: string;
+  };
+}
+

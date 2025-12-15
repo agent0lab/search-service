@@ -9,7 +9,8 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { useState } from 'react';
 
-const API_ENDPOINT = 'https://agent0-semantic-search.dawid-pisarczyk.workers.dev/api/search';
+const API_ENDPOINT = 'https://agent0-semantic-search.dawid-pisarczyk.workers.dev/api/v1/search';
+const API_BASE = 'https://agent0-semantic-search.dawid-pisarczyk.workers.dev/api/v1';
 
 const BASIC_EXAMPLE = `curl -s -X POST ${API_ENDPOINT} \\
   -H "Content-Type: application/json" \\
@@ -17,7 +18,31 @@ const BASIC_EXAMPLE = `curl -s -X POST ${API_ENDPOINT} \\
 
 const COMPLEX_EXAMPLE = `curl -s -X POST ${API_ENDPOINT} \\
   -H "Content-Type: application/json" \\
-  -d '{"query": "defi agent", "topK": 3, "filters": {"chainId": 11155111}, "minScore": 0.3}' | jq '.'`;
+  -d '{
+    "query": "defi agent",
+    "limit": 10,
+    "filters": {
+      "equals": {"chainId": 11155111},
+      "in": {"capabilities": ["defi", "trading"]}
+    },
+    "minScore": 0.3
+  }' | jq '.'`;
+
+const PAGINATION_EXAMPLE = `curl -s -X POST ${API_ENDPOINT} \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "query": "agent",
+    "limit": 10,
+    "offset": 10
+  }' | jq '.'`;
+
+const CURSOR_PAGINATION_EXAMPLE = `curl -s -X POST ${API_ENDPOINT} \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "query": "agent",
+    "limit": 10,
+    "cursor": "eyJvZmZzZXQiOjEwfQ"
+  }' | jq '.'`;
 
 function CodeBlock({ code, title }: { code: string; title: string }) {
   const [copied, setCopied] = useState(false);
@@ -68,9 +93,23 @@ export default function ApiDocsPage() {
         <div className="space-y-6">
           <div>
             <h1 className="text-4xl font-bold mb-4">Search API Documentation</h1>
-            <p className="text-lg text-muted-foreground">
+            <p className="text-lg text-muted-foreground mb-4">
               Use our semantic search API to find ERC-8004 agents by description, capabilities, or natural language queries.
             </p>
+            <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 mb-6">
+              <p className="text-sm">
+                <strong>API Standard:</strong> This API implements the{' '}
+                <a
+                  href="https://www.notion.so/AG0-Semantic-Search-Standard-2bc47a22ae4680789ce4fc4a306bc9c8?source=copy_link"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline font-medium"
+                >
+                  Universal Agent Semantic Search API Standard v1.0
+                </a>
+                {' '}for full specification details.
+              </p>
+            </div>
           </div>
 
           <Card>
@@ -99,42 +138,83 @@ export default function ApiDocsPage() {
                     <span className="text-muted-foreground">(required) - Natural language search query</span>
                   </div>
                   <div className="flex items-start gap-2">
-                    <Badge variant="outline" className="font-mono">topK</Badge>
-                    <span className="text-muted-foreground">(optional) - Maximum number of results (default: 10, max: 10)</span>
+                    <Badge variant="outline" className="font-mono">limit</Badge>
+                    <span className="text-muted-foreground">(optional) - Maximum number of results per page (default: 10, max: 10)</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="font-mono">offset</Badge>
+                    <span className="text-muted-foreground">(optional) - Number of results to skip (for offset-based pagination)</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="font-mono">cursor</Badge>
+                    <span className="text-muted-foreground">(optional) - Pagination cursor from previous response (takes precedence over offset)</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <Badge variant="outline" className="font-mono">filters</Badge>
-                    <span className="text-muted-foreground">(optional) - Filter object (see below)</span>
+                    <span className="text-muted-foreground">(optional) - Filter object using standard operators (see below)</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <Badge variant="outline" className="font-mono">minScore</Badge>
                     <span className="text-muted-foreground">(optional) - Minimum similarity score (0.0 - 1.0)</span>
                   </div>
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="font-mono">includeMetadata</Badge>
+                    <span className="text-muted-foreground">(optional) - Include full metadata in results (default: true)</span>
+                  </div>
                 </div>
               </div>
 
               <div>
-                <h3 className="font-semibold mb-2">Filter Object</h3>
+                <h3 className="font-semibold mb-2">Filter Operators</h3>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Filters use standard operators for flexible querying:
+                </p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="font-mono">equals</Badge>
+                    <span className="text-muted-foreground">- Exact match for field values (e.g., {"{"}"equals": {"{"}"chainId": 11155111{"}"}{"}"})</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="font-mono">in</Badge>
+                    <span className="text-muted-foreground">- Field value must be in array (e.g., {"{"}"in": {"{"}"capabilities": ["defi", "nft"]{"}"}{"}"})</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="font-mono">notIn</Badge>
+                    <span className="text-muted-foreground">- Field value must not be in array</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="font-mono">exists</Badge>
+                    <span className="text-muted-foreground">- Field must exist (array of field names)</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="font-mono">notExists</Badge>
+                    <span className="text-muted-foreground">- Field must not exist (array of field names)</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-2">Supported Filter Fields</h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex items-start gap-2">
                     <Badge variant="outline" className="font-mono">chainId</Badge>
-                    <span className="text-muted-foreground">- Filter by blockchain network ID (e.g., 11155111 for Ethereum Sepolia)</span>
+                    <span className="text-muted-foreground">- Blockchain network ID (use equals for single, in for multiple)</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <Badge variant="outline" className="font-mono">capabilities</Badge>
-                    <span className="text-muted-foreground">- Array of capability strings (e.g., [&quot;defi&quot;, &quot;nft&quot;])</span>
+                    <span className="text-muted-foreground">- Array of capability strings (use in operator)</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <Badge variant="outline" className="font-mono">tags</Badge>
-                    <span className="text-muted-foreground">- Array of trust model tags (e.g., [&quot;reputation&quot;, &quot;crypto-economic&quot;])</span>
+                    <span className="text-muted-foreground">- Array of trust model tags (use in operator)</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <Badge variant="outline" className="font-mono">defaultInputMode</Badge>
-                    <span className="text-muted-foreground">- Filter by input mode (e.g., &quot;text&quot;, &quot;json&quot;, &quot;image&quot;)</span>
+                    <span className="text-muted-foreground">- Input mode (use equals operator)</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <Badge variant="outline" className="font-mono">defaultOutputMode</Badge>
-                    <span className="text-muted-foreground">- Filter by output mode (e.g., &quot;text&quot;, &quot;json&quot;, &quot;image&quot;)</span>
+                    <span className="text-muted-foreground">- Output mode (use equals operator)</span>
                   </div>
                 </div>
               </div>
@@ -144,13 +224,15 @@ export default function ApiDocsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Response Format</CardTitle>
-              <CardDescription>The API returns a JSON object with search results</CardDescription>
+              <CardDescription>The API returns a JSON object with search results and pagination metadata</CardDescription>
             </CardHeader>
             <CardContent>
               <pre className="bg-slate-900/60 border border-slate-800/50 rounded-lg p-4 overflow-x-auto text-sm">
                 <code className="text-slate-100">{`{
+  "query": "string",
   "results": [
     {
+      "rank": 1,
       "vectorId": "string",
       "agentId": "string",
       "chainId": 11155111,
@@ -165,7 +247,20 @@ export default function ApiDocsPage() {
         "a2a": false
       }
     }
-  ]
+  ],
+  "total": 50,
+  "pagination": {
+    "hasMore": true,
+    "nextCursor": "eyJvZmZzZXQiOjEwfQ",
+    "limit": 10,
+    "offset": 0
+  },
+  "requestId": "uuid",
+  "timestamp": "2024-01-01T00:00:00Z",
+  "provider": {
+    "name": "agent0-semantic-search",
+    "version": "1.0.0"
+  }
 }`}</code>
               </pre>
             </CardContent>
@@ -187,9 +282,25 @@ export default function ApiDocsPage() {
 
               <div>
                 <h3 className="font-semibold mb-3">Complex Search with Filters</h3>
-                <CodeBlock code={COMPLEX_EXAMPLE} title="Complex search with all parameters" />
+                <CodeBlock code={COMPLEX_EXAMPLE} title="Complex search with filter operators" />
                 <p className="text-sm text-muted-foreground mt-2">
-                  This example shows how to use filters to search for DeFi agents on Ethereum Sepolia with a minimum score threshold.
+                  This example shows how to use standard filter operators (equals, in) to search for DeFi agents on Ethereum Sepolia with a minimum score threshold.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-3">Offset-Based Pagination</h3>
+                <CodeBlock code={PAGINATION_EXAMPLE} title="Pagination using offset" />
+                <p className="text-sm text-muted-foreground mt-2">
+                  Use the offset parameter to skip results and paginate through large result sets.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-3">Cursor-Based Pagination</h3>
+                <CodeBlock code={CURSOR_PAGINATION_EXAMPLE} title="Pagination using cursor" />
+                <p className="text-sm text-muted-foreground mt-2">
+                  Use the cursor from the previous response&apos;s pagination.nextCursor field for efficient pagination. Cursor takes precedence over offset when both are provided.
                 </p>
               </div>
             </CardContent>
@@ -220,6 +331,39 @@ export default function ApiDocsPage() {
 
           <Card>
             <CardHeader>
+              <CardTitle>Additional Endpoints</CardTitle>
+              <CardDescription>Other available API endpoints</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <code className="text-sm bg-slate-900/60 px-3 py-2 rounded border border-slate-800/50">
+                  GET {API_BASE}/capabilities
+                </code>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Get provider capabilities, limits, and supported features.
+                </p>
+              </div>
+              <div>
+                <code className="text-sm bg-slate-900/60 px-3 py-2 rounded border border-slate-800/50">
+                  GET {API_BASE}/health
+                </code>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Health check endpoint with service status information.
+                </p>
+              </div>
+              <div>
+                <code className="text-sm bg-slate-900/60 px-3 py-2 rounded border border-slate-800/50">
+                  GET {API_BASE}/schemas/{'{endpoint}'}
+                </code>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Get JSON schemas for API validation (optional endpoint).
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>Rate Limits</CardTitle>
               <CardDescription>API usage guidelines</CardDescription>
             </CardHeader>
@@ -227,6 +371,9 @@ export default function ApiDocsPage() {
               <p className="text-sm text-muted-foreground">
                 The API is currently available for public use. Please be respectful with request frequency.
                 If you need higher rate limits for production use, please contact us.
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Rate limit information is provided in response headers: <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">X-RateLimit-Limit</code>, <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">X-RateLimit-Remaining</code>, and <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">X-RateLimit-Reset</code>.
               </p>
             </CardContent>
           </Card>

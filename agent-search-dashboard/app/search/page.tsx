@@ -17,7 +17,7 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { searchAgents } from '@/lib/search-client';
-import type { SemanticSearchResult, SemanticSearchFilters } from '@/lib/types';
+import type { StandardSearchResult, StandardSearchResponse, StandardFilters } from '@/lib/types';
 import { AgentCard } from '@/components/agent/AgentCard';
 import { LiquidEtherBackground } from '@/components/LiquidEtherBackground';
 import { Header } from '@/components/Header';
@@ -27,15 +27,14 @@ const STORAGE_KEY = 'agent-search-state';
 
 interface StoredSearchState {
   query: string;
-  results: SemanticSearchResult[];
+  results: StandardSearchResult[];
   selectedChainIds: number[];
-  selectedCapabilities: string[];
-  selectedInputModes: string[];
-  selectedOutputModes: string[];
-  selectedTags: string[];
-  customTags: string;
-  customCapabilities: string;
-  topK: number;
+  equalsFilters: Record<string, unknown>;
+  inFilters: Record<string, unknown[]>;
+  notInFilters: Record<string, unknown[]>;
+  existsFields: string[];
+  notExistsFields: string[];
+  limit: number;
 }
 
 function SearchContent() {
@@ -43,28 +42,42 @@ function SearchContent() {
   const router = useRouter();
   
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SemanticSearchResult[]>([]);
+  const [results, setResults] = useState<StandardSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [topK, setTopK] = useState(10);
+  const [limit, setLimit] = useState(10);
   const [agentImages, setAgentImages] = useState<Record<string, string>>({});
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
   const [hasInitialized, setHasInitialized] = useState(false);
   const [agentURIsLoaded, setAgentURIsLoaded] = useState(false);
   const lastSearchedQueryRef = useRef<string>('');
   
-  // Filter state - using arrays for multiple selection
-  const [selectedChainIds, setSelectedChainIds] = useState<number[]>([]);
-  const [selectedCapabilities, setSelectedCapabilities] = useState<string[]>([]);
-  const [selectedInputModes, setSelectedInputModes] = useState<string[]>([]);
-  const [selectedOutputModes, setSelectedOutputModes] = useState<string[]>([]);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  // Pagination state
+  const [offset, setOffset] = useState(0);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState(0);
   
-  // Advanced filters - custom tags and capabilities
-  const [customTags, setCustomTags] = useState<string>('');
-  const [customCapabilities, setCustomCapabilities] = useState<string>('');
+  // Filter state using standard operators only
+  // equals filters (single values)
+  const [equalsFilters, setEqualsFilters] = useState<Record<string, unknown>>({});
+  
+  // in filters (array values - multiple selection)
+  const [inFilters, setInFilters] = useState<Record<string, unknown[]>>({});
+  
+  // notIn filters (exclusion)
+  const [notInFilters, setNotInFilters] = useState<Record<string, unknown[]>>({});
+  
+  // exists filters (field must exist)
+  const [existsFields, setExistsFields] = useState<string[]>([]);
+  
+  // notExists filters (field must not exist)
+  const [notExistsFields, setNotExistsFields] = useState<string[]>([]);
+  
+  // Standard field: chainId (using standard operators)
+  const [selectedChainIds, setSelectedChainIds] = useState<number[]>([]);
 
   // Restore view mode from localStorage
   useEffect(() => {
@@ -109,13 +122,12 @@ function SearchContent() {
           if (!urlChainId) {
             setSelectedChainIds(state.selectedChainIds || []);
           }
-          setSelectedCapabilities(state.selectedCapabilities || []);
-          setSelectedInputModes(state.selectedInputModes || []);
-          setSelectedOutputModes(state.selectedOutputModes || []);
-          setSelectedTags(state.selectedTags || []);
-          setCustomTags(state.customTags || '');
-          setCustomCapabilities(state.customCapabilities || '');
-          setTopK(state.topK || 10);
+          setEqualsFilters(state.equalsFilters || {});
+          setInFilters(state.inFilters || {});
+          setNotInFilters(state.notInFilters || {});
+          setExistsFields(state.existsFields || []);
+          setNotExistsFields(state.notExistsFields || []);
+          setLimit(state.limit || 10);
           
           // If URL query differs, don't restore old results or set ref - will trigger search in next useEffect
           if (!urlQueryDiffers) {
@@ -220,17 +232,16 @@ function SearchContent() {
         query,
         results,
         selectedChainIds,
-        selectedCapabilities,
-        selectedInputModes,
-        selectedOutputModes,
-        selectedTags,
-        customTags,
-        customCapabilities,
-        topK,
+        equalsFilters,
+        inFilters,
+        notInFilters,
+        existsFields,
+        notExistsFields,
+        limit,
       };
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
-  }, [query, results, selectedChainIds, selectedCapabilities, selectedInputModes, selectedOutputModes, selectedTags, customTags, customCapabilities, topK]);
+  }, [query, results, selectedChainIds, equalsFilters, inFilters, notInFilters, existsFields, notExistsFields, limit]);
   
   // Update URL only after a search is performed, not on every keystroke
   // This is handled in handleSearch instead
@@ -241,77 +252,111 @@ function SearchContent() {
     { id: 84532, name: 'Base Sepolia' },
     { id: 80002, name: 'Polygon Amoy' },
   ];
-  
-  const availableCapabilities = ['defi', 'nft', 'gaming', 'ai', 'data', 'finance', 'tools', 'analytics', 'trading', 'oracle'];
-  const availableInputModes = ['text', 'json', 'image', 'audio', 'multimodal'];
-  const availableOutputModes = ['text', 'json', 'image', 'audio', 'multimodal'];
-  const availableTags = ['reputation', 'crypto-economic', 'tee-attestation'];
 
-  const handleSearch = useCallback(async () => {
+  const handleSearch = useCallback(async (useCursor = false, newOffset = 0) => {
     if (!query.trim()) {
       setResults([]);
+      setHasMore(false);
+      setTotal(0);
       return;
     }
 
-    // Update URL when search is performed
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('q', query);
-    router.replace(`/search?${params.toString()}`, { scroll: false });
+    // Update URL when search is performed (only for new searches, not pagination)
+    if (!useCursor && newOffset === 0) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('q', query);
+      router.replace(`/search?${params.toString()}`, { scroll: false });
+    }
 
     setLoading(true);
     setError(null);
 
     try {
-      const filters: SemanticSearchFilters = {};
+      // Transform filters to v1 standard format (standard fields only)
+      const filters: StandardFilters = {};
       
-      // Chain IDs - use $in format for multiple
+      // Chain IDs - use equals for single, in for multiple
       if (selectedChainIds.length > 0) {
         if (selectedChainIds.length === 1) {
-          filters.chainId = selectedChainIds[0];
+          filters.equals = { ...filters.equals, chainId: selectedChainIds[0] };
         } else {
-          filters.chainId = { $in: selectedChainIds };
+          filters.in = { ...filters.in, chainId: selectedChainIds };
         }
       }
       
-      // Capabilities - combine selected and custom
-      const allCapabilities = [...selectedCapabilities];
-      if (customCapabilities.trim()) {
-        const custom = customCapabilities.split(',').map(c => c.trim()).filter(c => c);
-        allCapabilities.push(...custom);
-      }
-      if (allCapabilities.length > 0) {
-        filters.capabilities = allCapabilities;
+      // Standard field filters from UI (active, x402support, etc.)
+      if (Object.keys(equalsFilters).length > 0) {
+        filters.equals = { ...filters.equals, ...equalsFilters };
       }
       
-      // Input/Output modes - single selection (first selected)
-      if (selectedInputModes.length > 0) {
-        filters.defaultInputMode = selectedInputModes[0];
-      }
-      if (selectedOutputModes.length > 0) {
-        filters.defaultOutputMode = selectedOutputModes[0];
+      // Custom in filters (for standard fields like supportedTrusts, mcpTools, etc.)
+      if (Object.keys(inFilters).length > 0) {
+        filters.in = { ...filters.in, ...inFilters };
       }
       
-      // Tags - combine selected and custom
-      const allTags = [...selectedTags];
-      if (customTags.trim()) {
-        const custom = customTags.split(',').map(t => t.trim()).filter(t => t);
-        allTags.push(...custom);
+      // Custom notIn filters
+      if (Object.keys(notInFilters).length > 0) {
+        filters.notIn = notInFilters;
       }
-      if (allTags.length > 0) {
-        filters.tags = allTags;
+      
+      // Exists and notExists operators
+      if (existsFields.length > 0) {
+        filters.exists = existsFields;
+      }
+      if (notExistsFields.length > 0) {
+        filters.notExists = notExistsFields;
       }
 
-      const response = await searchAgents({
+      // Build request with pagination
+      const request: any = {
         query,
-        topK: Math.min(topK, 10), // Max 10
-        filters: Object.keys(filters).length > 0 ? filters : undefined,
-      });
+        limit: Math.min(limit, 10), // Max 10
+        includeMetadata: true,
+      };
 
-      // Update ref to track the query we just searched
-      lastSearchedQueryRef.current = query;
+      // Use cursor if available, otherwise use offset
+      if (useCursor && cursor) {
+        request.cursor = cursor;
+      } else if (!useCursor) {
+        request.offset = newOffset;
+        setOffset(newOffset);
+      }
 
-      // Show results immediately for fast UI
-      setResults(response.results);
+      // Only include filters if we have any
+      if (Object.keys(filters).length > 0) {
+        request.filters = filters;
+      }
+
+      const response: StandardSearchResponse = await searchAgents(request);
+
+      // Update ref to track the query we just searched (only for new searches)
+      if (!useCursor && newOffset === 0) {
+        lastSearchedQueryRef.current = query;
+        // Reset results for new search
+        setResults(response.results);
+        setOffset(0);
+        setCursor(null);
+        setTotal(response.total);
+      } else {
+        // Append results for pagination (deduplicate by vectorId)
+        setResults(prev => {
+          const existingIds = new Set(prev.map(r => r.vectorId));
+          const newResults = response.results.filter(r => !existingIds.has(r.vectorId));
+          return [...prev, ...newResults];
+        });
+        // Don't update total when paginating - keep the original total
+      }
+
+      // Update pagination state
+      if (response.pagination) {
+        setHasMore(response.pagination.hasMore || false);
+        if (response.pagination.nextCursor) {
+          setCursor(response.pagination.nextCursor);
+        }
+        if (response.pagination.offset !== undefined) {
+          setOffset(response.pagination.offset);
+        }
+      }
       setAgentURIsLoaded(false); // Reset flag when new search starts
       
       // Enrich results in the background (non-blocking) using batch endpoint
@@ -387,11 +432,14 @@ function SearchContent() {
       })();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Search failed');
-      setResults([]);
+      if (!useCursor && newOffset === 0) {
+        setResults([]);
+      }
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
-  }, [query, topK, selectedChainIds, selectedCapabilities, selectedInputModes, selectedOutputModes, selectedTags, customTags, customCapabilities, router, searchParams]);
+  }, [query, limit, selectedChainIds, equalsFilters, inFilters, notInFilters, existsFields, notExistsFields, cursor, router, searchParams]);
 
   // Auto-trigger search when URL query changes after initialization
   useEffect(() => {
@@ -423,12 +471,16 @@ function SearchContent() {
 
   const clearFilters = () => {
     setSelectedChainIds([]);
-    setSelectedCapabilities([]);
-    setSelectedInputModes([]);
-    setSelectedOutputModes([]);
-    setSelectedTags([]);
-    setCustomTags('');
-    setCustomCapabilities('');
+    setEqualsFilters({});
+    setInFilters({});
+    setNotInFilters({});
+    setExistsFields([]);
+    setNotExistsFields([]);
+    // Reset pagination
+    setOffset(0);
+    setCursor(null);
+    setHasMore(false);
+    setTotal(0);
   };
 
   const toggleChainId = (chainId: number) => {
@@ -436,22 +488,6 @@ function SearchContent() {
       prev.includes(chainId) 
         ? prev.filter(id => id !== chainId)
         : [...prev, chainId]
-    );
-  };
-
-  const toggleCapability = (capability: string) => {
-    setSelectedCapabilities(prev => 
-      prev.includes(capability)
-        ? prev.filter(c => c !== capability)
-        : [...prev, capability]
-    );
-  };
-
-  const toggleTag = (tag: string) => {
-    setSelectedTags(prev => 
-      prev.includes(tag)
-        ? prev.filter(t => t !== tag)
-        : [...prev, tag]
     );
   };
 
@@ -494,9 +530,9 @@ function SearchContent() {
                 >
                   <Filter className="h-4 w-4 mr-2" />
                   Advanced Filters
-                  {(selectedChainIds.length > 0 || selectedCapabilities.length > 0 || selectedTags.length > 0 || selectedInputModes.length > 0 || selectedOutputModes.length > 0) && (
+                  {(selectedChainIds.length > 0 || Object.keys(equalsFilters).length > 0 || Object.keys(inFilters).length > 0 || Object.keys(notInFilters).length > 0 || existsFields.length > 0 || notExistsFields.length > 0) && (
                     <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
-                      {selectedChainIds.length + selectedCapabilities.length + selectedTags.length + selectedInputModes.length + selectedOutputModes.length}
+                      {selectedChainIds.length + Object.keys(equalsFilters).length + Object.keys(inFilters).length + Object.keys(notInFilters).length + existsFields.length + notExistsFields.length}
                     </Badge>
                   )}
                 </Button>
@@ -522,13 +558,13 @@ function SearchContent() {
                   {/* Blockchain Networks */}
                   <div>
                     <div className="flex items-center gap-2 mb-2">
-                      <Label className="text-sm font-medium">Blockchain Networks</Label>
+                      <Label className="text-sm font-medium">Blockchain Networks (chainId)</Label>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Info className="h-3 w-3 text-muted-foreground cursor-help" />
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>Filter agents by blockchain network</p>
+                          <p>Filter agents by blockchain network. Uses <code className="text-xs">equals</code> for single, <code className="text-xs">in</code> for multiple.</p>
                         </TooltipContent>
                       </Tooltip>
                     </div>
@@ -588,212 +624,6 @@ function SearchContent() {
                     )}
                   </div>
 
-                  {/* Capabilities */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Label className="text-sm font-medium">Capabilities</Label>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Filter by agent capabilities (e.g., DeFi, NFT, Gaming)</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-between"
-                        >
-                          <span>
-                            {selectedCapabilities.length === 0
-                              ? 'All capabilities'
-                              : selectedCapabilities.length === 1
-                              ? selectedCapabilities[0].charAt(0).toUpperCase() + selectedCapabilities[0].slice(1)
-                              : `${selectedCapabilities.length} selected`}
-                          </span>
-                          <ChevronDown className="h-4 w-4 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80" align="start">
-                        <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto">
-                          {availableCapabilities.map((cap) => (
-                            <div key={cap} className="flex items-center space-x-2">
-                              <Checkbox
-                                id={`cap-${cap}`}
-                                checked={selectedCapabilities.includes(cap)}
-                                onCheckedChange={() => toggleCapability(cap)}
-                              />
-                              <Label
-                                htmlFor={`cap-${cap}`}
-                                className="text-sm font-normal cursor-pointer capitalize flex-1"
-                              >
-                                {cap}
-                              </Label>
-                            </div>
-                          ))}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                    {selectedCapabilities.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {selectedCapabilities.map((cap) => (
-                          <Badge key={cap} variant="secondary" className="text-xs capitalize">
-                            {cap}
-                            <button
-                              onClick={() => toggleCapability(cap)}
-                              className="ml-1 hover:text-destructive"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Input Mode */}
-                  <div>
-                    <Label className="mb-2 block text-sm font-medium">Input Mode</Label>
-                    <Select
-                      value={selectedInputModes.length > 0 ? selectedInputModes[0] : 'all'}
-                      onValueChange={(value) => {
-                        if (value === 'all') {
-                          setSelectedInputModes([]);
-                        } else {
-                          setSelectedInputModes([value]);
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue>
-                          {selectedInputModes.length === 0
-                            ? 'All input modes'
-                            : selectedInputModes[0].charAt(0).toUpperCase() + selectedInputModes[0].slice(1)}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All input modes</SelectItem>
-                        {availableInputModes.map((mode) => (
-                          <SelectItem key={mode} value={mode}>
-                            {mode.charAt(0).toUpperCase() + mode.slice(1)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Output Mode */}
-                  <div>
-                    <Label className="mb-2 block text-sm font-medium">Output Mode</Label>
-                    <Select
-                      value={selectedOutputModes.length > 0 ? selectedOutputModes[0] : 'all'}
-                      onValueChange={(value) => {
-                        if (value === 'all') {
-                          setSelectedOutputModes([]);
-                        } else {
-                          setSelectedOutputModes([value]);
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue>
-                          {selectedOutputModes.length === 0
-                            ? 'All output modes'
-                            : selectedOutputModes[0].charAt(0).toUpperCase() + selectedOutputModes[0].slice(1)}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All output modes</SelectItem>
-                        {availableOutputModes.map((mode) => (
-                          <SelectItem key={mode} value={mode}>
-                            {mode.charAt(0).toUpperCase() + mode.slice(1)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Tags (Trust Models) */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Label className="text-sm font-medium">Trust Models</Label>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Filter by trust model type (reputation, crypto-economic, TEE)</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-between"
-                        >
-                          <span>
-                            {selectedTags.length === 0
-                              ? 'All trust models'
-                              : selectedTags.length === 1
-                              ? selectedTags[0].split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-')
-                              : `${selectedTags.length} selected`}
-                          </span>
-                          <ChevronDown className="h-4 w-4 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80" align="start">
-                        <div className="space-y-2 max-h-60 overflow-y-auto">
-                          {availableTags.map((tag) => {
-                            const displayName = tag.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-');
-                            const descriptions: Record<string, string> = {
-                              'reputation': 'Reputation-based trust',
-                              'crypto-economic': 'Crypto-economic incentives',
-                              'tee-attestation': 'TEE (Trusted Execution Environment) attestation',
-                            };
-                            return (
-                              <div key={tag} className="flex items-start space-x-2">
-                                <Checkbox
-                                  id={`tag-${tag}`}
-                                  checked={selectedTags.includes(tag)}
-                                  onCheckedChange={() => toggleTag(tag)}
-                                  className="mt-0.5"
-                                />
-                                <Label
-                                  htmlFor={`tag-${tag}`}
-                                  className="text-sm font-normal cursor-pointer flex-1"
-                                >
-                                  <div className="font-medium">{displayName}</div>
-                                  {descriptions[tag] && (
-                                    <div className="text-xs text-muted-foreground">{descriptions[tag]}</div>
-                                  )}
-                                </Label>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                    {selectedTags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {selectedTags.map((tag) => (
-                          <Badge key={tag} variant="secondary" className="text-xs capitalize">
-                            {tag}
-                            <button
-                              onClick={() => toggleTag(tag)}
-                              className="ml-1 hover:text-destructive"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
                     {/* Advanced Filters */}
                     <div className="md:col-span-2">
                       <Separator className="my-4" />
@@ -804,56 +634,244 @@ function SearchContent() {
                         className="mb-3"
                       >
                         {showAdvanced ? <ChevronUp className="h-4 w-4 mr-2" /> : <ChevronDown className="h-4 w-4 mr-2" />}
-                        Advanced Filters
+                        Advanced Filters (Standard Operators)
                       </Button>
                       {showAdvanced && (
                         <div className="space-y-4 mt-2 p-4 bg-muted/50 rounded-md">
-                          <div>
-                            <Label htmlFor="customTags" className="text-sm">Custom Trust Models (comma-separated)</Label>
-                            <Input
-                              id="customTags"
-                              type="text"
-                              placeholder="e.g., reputation, crypto-economic"
-                              value={customTags}
-                              onChange={(e) => setCustomTags(e.target.value)}
-                              className="mt-1"
-                            />
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Add custom trust models separated by commas
+                          <div className="mb-4">
+                            <p className="text-xs text-muted-foreground mb-2">
+                              These filters use the Universal Agent Semantic Search API Standard v1.0 operators:
+                            </p>
+                            <div className="flex flex-wrap gap-2 text-xs mb-3">
+                              <Badge variant="outline" className="font-mono">equals</Badge>
+                              <Badge variant="outline" className="font-mono">in</Badge>
+                              <Badge variant="outline" className="font-mono">notIn</Badge>
+                              <Badge variant="outline" className="font-mono">exists</Badge>
+                              <Badge variant="outline" className="font-mono">notExists</Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              <strong>Supported Standard Fields:</strong> id, cid, agentId, name, description, image, active, x402support, supportedTrusts, mcpEndpoint, mcpVersion, a2aEndpoint, a2aVersion, ens, did, agentWallet, agentWalletChainId, mcpTools, mcpPrompts, mcpResources, a2aSkills, chainId, createdAt
                             </p>
                           </div>
+                          
+                          <Separator />
+                          
                           <div>
-                            <Label htmlFor="customCapabilities" className="text-sm">Custom Capabilities (comma-separated)</Label>
-                            <Input
-                              id="customCapabilities"
-                              type="text"
-                              placeholder="e.g., defi, nft"
-                              value={customCapabilities}
-                              onChange={(e) => setCustomCapabilities(e.target.value)}
-                              className="mt-1"
-                            />
+                            <Label className="text-sm font-medium mb-2 block">Standard Field Filters</Label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <Label htmlFor="activeFilter" className="text-xs">Active Status</Label>
+                                <Select
+                                  value={equalsFilters.active !== undefined ? String(equalsFilters.active) : 'all'}
+                                  onValueChange={(value) => {
+                                    if (value === 'all') {
+                                      const { active, ...rest } = equalsFilters;
+                                      setEqualsFilters(rest);
+                                    } else {
+                                      setEqualsFilters({ ...equalsFilters, active: value === 'true' });
+                                    }
+                                  }}
+                                >
+                                  <SelectTrigger className="w-full mt-1">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="all">All</SelectItem>
+                                    <SelectItem value="true">Active only</SelectItem>
+                                    <SelectItem value="false">Inactive only</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Uses <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">equals</code> operator
+                                </p>
+                              </div>
+                              
+                              <div>
+                                <Label htmlFor="x402supportFilter" className="text-xs">x402 Support</Label>
+                                <Select
+                                  value={equalsFilters.x402support !== undefined ? String(equalsFilters.x402support) : 'all'}
+                                  onValueChange={(value) => {
+                                    if (value === 'all') {
+                                      const { x402support, ...rest } = equalsFilters;
+                                      setEqualsFilters(rest);
+                                    } else {
+                                      setEqualsFilters({ ...equalsFilters, x402support: value === 'true' });
+                                    }
+                                  }}
+                                >
+                                  <SelectTrigger className="w-full mt-1">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="all">All</SelectItem>
+                                    <SelectItem value="true">Has x402 support</SelectItem>
+                                    <SelectItem value="false">No x402 support</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Uses <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">equals</code> operator
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <Separator />
+                          
+                          <div>
+                            <Label className="text-sm font-medium mb-2 block">Field Existence Filters</Label>
+                            <div className="space-y-2">
+                              <div>
+                                <Label htmlFor="existsFields" className="text-xs">Fields that must exist (comma-separated)</Label>
+                                <Input
+                                  id="existsFields"
+                                  type="text"
+                                  placeholder="e.g., mcpEndpoint, a2aEndpoint, agentWallet"
+                                  value={existsFields.join(', ')}
+                                  onChange={(e) => {
+                                    const fields = e.target.value.split(',').map(f => f.trim()).filter(f => f);
+                                    setExistsFields(fields);
+                                  }}
+                                  className="mt-1"
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Uses <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">exists</code> operator. Standard fields: mcpEndpoint, a2aEndpoint, ens, did, agentWallet, etc.
+                                </p>
+                              </div>
+                              <div>
+                                <Label htmlFor="notExistsFields" className="text-xs">Fields that must not exist (comma-separated)</Label>
+                                <Input
+                                  id="notExistsFields"
+                                  type="text"
+                                  placeholder="e.g., deprecated, archived"
+                                  value={notExistsFields.join(', ')}
+                                  onChange={(e) => {
+                                    const fields = e.target.value.split(',').map(f => f.trim()).filter(f => f);
+                                    setNotExistsFields(fields);
+                                  }}
+                                  className="mt-1"
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Uses <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">notExists</code> operator
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <Separator />
+                          
+                          <div>
+                            <Label className="text-sm font-medium mb-2 block">Custom Standard Field Filters</Label>
+                            <div className="space-y-2">
+                              <div>
+                                <Label htmlFor="customEquals" className="text-xs">Equals Filters (JSON format)</Label>
+                                <Input
+                                  id="customEquals"
+                                  type="text"
+                                  placeholder='e.g., {"name": "MyAgent"}'
+                                  value={JSON.stringify(equalsFilters).replace(/[{}"]/g, '').replace(/:/g, ': ')}
+                                  onChange={(e) => {
+                                    try {
+                                      const parsed = JSON.parse(`{${e.target.value}}`);
+                                      setEqualsFilters(parsed);
+                                    } catch {
+                                      // Invalid JSON, ignore
+                                    }
+                                  }}
+                                  className="mt-1 font-mono text-xs"
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Add custom equals filters for any supported field (e.g., name, agentId, ens, did)
+                                </p>
+                              </div>
+                              <div>
+                                <Label htmlFor="customIn" className="text-xs">In Filters (JSON format)</Label>
+                                <Input
+                                  id="customIn"
+                                  type="text"
+                                  placeholder='e.g., {"supportedTrusts": ["reputation", "crypto-economic"]}'
+                                  value={JSON.stringify(inFilters).replace(/[{}"]/g, '').replace(/:/g, ': ')}
+                                  onChange={(e) => {
+                                    try {
+                                      const parsed = JSON.parse(`{${e.target.value}}`);
+                                      setInFilters(parsed);
+                                    } catch {
+                                      // Invalid JSON, ignore
+                                    }
+                                  }}
+                                  className="mt-1 font-mono text-xs"
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Add custom in filters for array fields (e.g., supportedTrusts, mcpTools, a2aSkills)
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <Separator />
+                          
+                          <div>
+                            <Label className="text-sm font-medium mb-2 block">Active Standard Filters (JSON)</Label>
+                            <div className="text-xs space-y-1 p-2 bg-slate-900/40 rounded border border-slate-800/50 font-mono max-h-40 overflow-y-auto">
+                              {(() => {
+                                const filters: StandardFilters = {};
+                                
+                                // Chain IDs
+                                if (selectedChainIds.length === 1) {
+                                  filters.equals = { ...filters.equals, chainId: selectedChainIds[0] };
+                                } else if (selectedChainIds.length > 1) {
+                                  filters.in = { ...filters.in, chainId: selectedChainIds };
+                                }
+                                
+                                // Standard field filters from UI
+                                if (Object.keys(equalsFilters).length > 0) {
+                                  filters.equals = { ...filters.equals, ...equalsFilters };
+                                }
+                                if (Object.keys(inFilters).length > 0) {
+                                  filters.in = { ...filters.in, ...inFilters };
+                                }
+                                if (Object.keys(notInFilters).length > 0) {
+                                  filters.notIn = notInFilters;
+                                }
+                                
+                                // Exists and notExists
+                                if (existsFields.length > 0) {
+                                  filters.exists = existsFields;
+                                }
+                                if (notExistsFields.length > 0) {
+                                  filters.notExists = notExistsFields;
+                                }
+                                
+                                return Object.keys(filters).length > 0 ? (
+                                  <pre className="text-xs whitespace-pre-wrap break-words text-slate-100">
+                                    {JSON.stringify(filters, null, 2)}
+                                  </pre>
+                                ) : (
+                                  <span className="text-muted-foreground">No filters applied</span>
+                                );
+                              })()}
+                            </div>
                             <p className="text-xs text-muted-foreground mt-1">
-                              Add custom capabilities separated by commas
+                              This is the exact filter format sent to the API using standard operators.
                             </p>
                           </div>
                         </div>
                       )}
                     </div>
 
-                    {/* Top K */}
+                    {/* Limit */}
                     <div>
-                      <Label htmlFor="topK" className="text-sm font-medium">Results (Top K)</Label>
+                      <Label htmlFor="limit" className="text-sm font-medium">Results per Page</Label>
                       <Input
-                        id="topK"
+                        id="limit"
                         type="number"
                         min="1"
                         max="10"
-                        value={topK}
-                        onChange={(e) => setTopK(Math.min(Math.max(1, parseInt(e.target.value, 10) || 1), 10))}
+                        value={limit}
+                        onChange={(e) => setLimit(Math.min(Math.max(1, parseInt(e.target.value, 10) || 1), 10))}
                         className="mt-1"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        Maximum 10 results
+                        Maximum 10 results per page
                       </p>
                     </div>
                   </div>
@@ -901,7 +919,11 @@ function SearchContent() {
                   Search Results
                 </h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Found {results.length} result{results.length !== 1 ? 's' : ''}
+                  {total > 0 ? (
+                    <>Showing {results.length} of {total} result{total !== 1 ? 's' : ''}</>
+                  ) : (
+                    <>Found {results.length} result{results.length !== 1 ? 's' : ''}</>
+                  )}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -943,7 +965,7 @@ function SearchContent() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {results.map((result, index) => (
                   <div 
-                    key={result.vectorId}
+                    key={`${result.chainId}-${result.agentId}-${result.rank}`}
                     className="animate-in fade-in-0 slide-in-from-bottom-4"
                     style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}
                   >
@@ -993,20 +1015,19 @@ function SearchContent() {
                           
                           return (
                             <TableRow 
-                              key={result.vectorId} 
+                              key={`${result.chainId}-${result.agentId}-${result.rank}`} 
                               className="hover:bg-muted/50 cursor-pointer"
                               onClick={() => {
                                 const state: StoredSearchState = {
                                   query,
                                   results,
                                   selectedChainIds,
-                                  selectedCapabilities,
-                                  selectedInputModes,
-                                  selectedOutputModes,
-                                  selectedTags,
-                                  customTags,
-                                  customCapabilities,
-                                  topK,
+                                  equalsFilters,
+                                  inFilters,
+                                  notInFilters,
+                                  existsFields,
+                                  notExistsFields,
+                                  limit,
                                 };
                                 sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
                                 window.location.href = agentUrl;
@@ -1156,6 +1177,42 @@ function SearchContent() {
                 </Card>
               </div>
             )}
+
+            {/* Pagination Controls */}
+            {(hasMore || offset > 0) && (
+              <div className="mt-6 flex items-center justify-center gap-4">
+                {offset > 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const newOffset = Math.max(0, offset - limit);
+                      setResults([]);
+                      setCursor(null);
+                      handleSearch(false, newOffset);
+                    }}
+                    disabled={loading}
+                  >
+                    Previous
+                  </Button>
+                )}
+                {hasMore && (
+                  <Button
+                    onClick={() => handleSearch(true, 0)}
+                    disabled={loading}
+                    className="min-w-[120px]"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        Loading...
+                      </>
+                    ) : (
+                      'Load More'
+                    )}
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -1256,4 +1313,5 @@ export default function SearchPage() {
     </Suspense>
   );
 }
+
 
