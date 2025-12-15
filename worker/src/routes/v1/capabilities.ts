@@ -66,3 +66,4 @@ export async function capabilitiesHandler(c: Context<{ Bindings: Env }>): Promis
   return c.json(capabilities);
 }
 
+
