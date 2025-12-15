@@ -1,6 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import { SDK } from 'agent0-ts/index.js';
-import { SemanticSyncRunner, type SemanticSyncRunnerOptions } from 'agent0-ts/semantic-search/index.js';
+import { SDK } from 'agent0-sdk';
+import { SemanticSyncRunner, type SemanticSyncRunnerOptions } from '../utils/semantic-sync-runner.js';
 import { D1SemanticSyncStateStore } from '../utils/d1-sync-state-store.js';
 import { getChains, initializeDefaults } from '../utils/config-store.js';
 import { VeniceEmbeddingProvider } from '../utils/providers/venice-embedding.js';
@@ -95,17 +95,11 @@ export class IndexingService {
       throw new Error(`Pinecone initialization failed: ${errorMessage}. Please check your PINECONE_API_KEY and PINECONE_INDEX configuration.`);
     }
 
-    // Initialize SDK with first chain (for subgraph client initialization)
-    // The SemanticSyncRunner will handle multiple chains via targets
-    // Pass provider instances directly to avoid SDK creating new ones
+    // Initialize SDK (optional, mainly for subgraph URL resolution if needed)
     const primaryChainId = chains[0];
     const sdk = new SDK({
       chainId: primaryChainId,
       rpcUrl: this.config.rpcUrl,
-      semanticSearch: {
-        embedding: embeddingProvider,
-        vectorStore: vectorStoreProvider,
-      },
     });
 
     // Create sync runner with configured chains as targets
@@ -113,6 +107,8 @@ export class IndexingService {
     const options: SemanticSyncRunnerOptions = {
       batchSize: this.config.batchSize || 50,
       stateStore,
+      embeddingProvider,
+      vectorStoreProvider,
       logger: (event: string, extra?: Record<string, unknown>) => {
         console.log(`[indexing] ${event}`, extra ?? {});
         
@@ -125,12 +121,20 @@ export class IndexingService {
           if (typeof extra.deleted === 'number') {
             agentsDeleted += extra.deleted;
           }
+        } else if (event === 'semantic-sync:chain-complete' && extra) {
+          // Track final stats from chain completion
+          if (typeof extra.indexed === 'number') {
+            agentsIndexed += extra.indexed;
+          }
+          if (typeof extra.deleted === 'number') {
+            agentsDeleted += extra.deleted;
+          }
         }
       },
       targets,
     };
 
-    const runner = new SemanticSyncRunner(sdk, options);
+    const runner = new SemanticSyncRunner(options, sdk);
 
     // Run the sync
     await runner.run();
