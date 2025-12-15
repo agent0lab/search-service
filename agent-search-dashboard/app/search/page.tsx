@@ -314,12 +314,17 @@ function SearchContent() {
         includeMetadata: true,
       };
 
-      // Use cursor if available, otherwise use offset
+      // Use cursor if available, otherwise fall back to offset-based pagination
       if (useCursor && cursor) {
         request.cursor = cursor;
-      } else if (!useCursor) {
-        request.offset = newOffset;
-        setOffset(newOffset);
+      } else {
+        // Fall back to offset-based pagination
+        // If useCursor was true but cursor is null, calculate next offset from current state
+        const effectiveOffset = useCursor && !cursor 
+          ? offset + Math.min(limit, 10) // Next page offset
+          : newOffset;
+        request.offset = effectiveOffset;
+        setOffset(effectiveOffset);
       }
 
       // Only include filters if we have any
@@ -966,19 +971,14 @@ function SearchContent() {
             {viewMode === 'card' && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {results.map((result, index) => (
-                  <div 
-                    key={`${result.chainId}-${result.agentId}-${result.rank}`}
-                    className="animate-in fade-in-0 slide-in-from-bottom-4"
-                    style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}
-                  >
-                    <AgentCard
-                      result={result}
-                      agentImage={agentImages[result.agentId]}
-                      getChainName={getChainName}
-                      formatAgentId={formatAgentId}
-                      agentURIsLoaded={agentURIsLoaded}
-                    />
-                  </div>
+                  <AgentCard
+                    key={result.vectorId || `${result.chainId}-${result.agentId}-${index}`}
+                    result={result}
+                    agentImage={agentImages[result.agentId]}
+                    getChainName={getChainName}
+                    formatAgentId={formatAgentId}
+                    agentURIsLoaded={agentURIsLoaded}
+                  />
                 ))}
               </div>
             )}
@@ -1001,7 +1001,7 @@ function SearchContent() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {results.map((result) => {
+                        {results.map((result, index) => {
                           const capabilities = result.metadata?.capabilities;
                           const capabilitiesArray = Array.isArray(capabilities) ? (capabilities as string[]) : [];
                           const trustModels = result.metadata?.tags || [];
@@ -1017,7 +1017,7 @@ function SearchContent() {
                           
                           return (
                             <TableRow 
-                              key={`${result.chainId}-${result.agentId}-${result.rank}`} 
+                              key={result.vectorId || `${result.chainId}-${result.agentId}-${index}`} 
                               className="hover:bg-muted/50 cursor-pointer"
                               onClick={() => {
                                 const state: StoredSearchState = {
@@ -1032,7 +1032,7 @@ function SearchContent() {
                                   limit,
                                 };
                                 sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-                                window.location.href = agentUrl;
+                                router.push(agentUrl);
                               }}
                             >
                               <TableCell className="w-[35%]">
