@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Search, Filter, X, ChevronDown, ChevronUp, LayoutGrid, Table as TableIcon, Info, AlertTriangle } from 'lucide-react';
+import { Search, Filter, X, ChevronDown, ChevronUp, LayoutGrid, Table as TableIcon, Info, AlertTriangle, ArrowUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -46,6 +46,7 @@ function SearchContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [showSort, setShowSort] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [limit, setLimit] = useState(10);
   const [agentImages, setAgentImages] = useState<Record<string, string>>({});
@@ -500,7 +501,7 @@ function SearchContent() {
     } finally {
       setLoading(false);
     }
-  }, [query, limit, selectedChainIds, equalsFilters, inFilters, notInFilters, existsFields, notExistsFields, cursor, router, searchParams]);
+  }, [query, limit, selectedChainIds, equalsFilters, inFilters, notInFilters, existsFields, notExistsFields, cursor, router, searchParams, nameFilter, mcpFilter, a2aFilter, ownerFilter, operatorsFilter, walletAddressFilter, supportedTrustsFilter, sortOptions]);
 
   // Auto-trigger search when URL query changes after initialization
   useEffect(() => {
@@ -609,23 +610,24 @@ function SearchContent() {
                 </button>
               )}
             </div>
-            <Dialog open={showFilters} onOpenChange={setShowFilters}>
-              <DialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="h-11"
-                >
-                  <Filter className="h-4 w-4 mr-2" />
-                  Advanced Filters
-                  {(selectedChainIds.length > 0 || Object.keys(equalsFilters).length > 0 || Object.keys(inFilters).length > 0 || Object.keys(notInFilters).length > 0 || existsFields.length > 0 || notExistsFields.length > 0 || nameFilter.trim() !== '' || sortOptions.length > 0 || mcpFilter !== null || a2aFilter !== null || ownerFilter.trim() !== '' || operatorsFilter.length > 0 || walletAddressFilter.trim() !== '' || supportedTrustsFilter.length > 0) && (
-                    <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
-                      {selectedChainIds.length + Object.keys(equalsFilters).length + Object.keys(inFilters).length + Object.keys(notInFilters).length + existsFields.length + notExistsFields.length + (nameFilter.trim() !== '' ? 1 : 0) + sortOptions.length + (mcpFilter !== null ? 1 : 0) + (a2aFilter !== null ? 1 : 0) + (ownerFilter.trim() !== '' ? 1 : 0) + operatorsFilter.length + (walletAddressFilter.trim() !== '' ? 1 : 0) + supportedTrustsFilter.length}
-                    </Badge>
-                  )}
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto sm:max-w-4xl">
-                <DialogHeader>
+            <div className="flex gap-2">
+              <Dialog open={showFilters} onOpenChange={setShowFilters}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="h-11"
+                  >
+                    <Filter className="h-4 w-4 mr-2" />
+                    Advanced Filters
+                    {(selectedChainIds.length > 0 || Object.keys(equalsFilters).length > 0 || Object.keys(inFilters).length > 0 || Object.keys(notInFilters).length > 0 || existsFields.length > 0 || notExistsFields.length > 0 || nameFilter.trim() !== '' || mcpFilter !== null || a2aFilter !== null || ownerFilter.trim() !== '' || operatorsFilter.length > 0 || walletAddressFilter.trim() !== '' || supportedTrustsFilter.length > 0) && (
+                      <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
+                        {selectedChainIds.length + Object.keys(equalsFilters).length + Object.keys(inFilters).length + Object.keys(notInFilters).length + existsFields.length + notExistsFields.length + (nameFilter.trim() !== '' ? 1 : 0) + (mcpFilter !== null ? 1 : 0) + (a2aFilter !== null ? 1 : 0) + (ownerFilter.trim() !== '' ? 1 : 0) + operatorsFilter.length + (walletAddressFilter.trim() !== '' ? 1 : 0) + supportedTrustsFilter.length}
+                      </Badge>
+                    )}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto sm:max-w-4xl">
+                  <DialogHeader>
                   <DialogTitle className="text-2xl">Advanced Filters</DialogTitle>
                   <DialogDescription className="text-base">
                     Filter agents by blockchain network, capabilities, trust models, and more
@@ -851,67 +853,6 @@ function SearchContent() {
                                 </Select>
                                 <p className="text-xs text-muted-foreground mt-1">
                                   Uses <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">equals</code> operator on <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">a2a</code> field
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <Separator />
-                          
-                          <div>
-                            <Label className="text-sm font-medium mb-2 block">Sorting</Label>
-                            <div className="space-y-2">
-                              <div>
-                                <Label htmlFor="sortField" className="text-xs">Sort By</Label>
-                                <div className="flex gap-2 mt-1">
-                                  <Select
-                                    value={sortOptions.length > 0 ? sortOptions[0].split(':')[0] : ''}
-                                    onValueChange={(field) => {
-                                      const currentDirection = sortOptions.length > 0 ? sortOptions[0].split(':')[1] || 'asc' : 'asc';
-                                      setSortOptions([`${field}:${currentDirection}`]);
-                                    }}
-                                  >
-                                    <SelectTrigger className="flex-1">
-                                      <SelectValue placeholder="Select field..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="score">Score (relevance)</SelectItem>
-                                      <SelectItem value="updatedAt">Updated At</SelectItem>
-                                      <SelectItem value="createdAt">Created At</SelectItem>
-                                      <SelectItem value="name">Name</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                  <Select
-                                    value={sortOptions.length > 0 ? sortOptions[0].split(':')[1] || 'asc' : 'asc'}
-                                    onValueChange={(direction) => {
-                                      const currentField = sortOptions.length > 0 ? sortOptions[0].split(':')[0] : '';
-                                      if (currentField) {
-                                        setSortOptions([`${currentField}:${direction}`]);
-                                      }
-                                    }}
-                                    disabled={sortOptions.length === 0 || !sortOptions[0].split(':')[0]}
-                                  >
-                                    <SelectTrigger className="w-32">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="asc">Ascending</SelectItem>
-                                      <SelectItem value="desc">Descending</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                  {sortOptions.length > 0 && sortOptions[0].split(':')[0] && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => setSortOptions([])}
-                                      className="h-10"
-                                    >
-                                      <X className="h-4 w-4" />
-                                    </Button>
-                                  )}
-                                </div>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Format: <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">field:direction</code> (e.g., <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">updatedAt:desc</code>)
                                 </p>
                               </div>
                             </div>
@@ -1149,7 +1090,109 @@ function SearchContent() {
                   </div>
                 </div>
               </DialogContent>
-            </Dialog>
+              </Dialog>
+              <Dialog open={showSort} onOpenChange={setShowSort}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="h-11"
+                  >
+                    <ArrowUpDown className="h-4 w-4 mr-2" />
+                    Sort
+                    {sortOptions.length > 0 && (
+                      <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
+                        {sortOptions.length}
+                      </Badge>
+                    )}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="text-xl">Sort Results</DialogTitle>
+                    <DialogDescription>
+                      Choose how to sort search results
+                    </DialogDescription>
+                  </DialogHeader>
+                  <Separator className="my-4" />
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="sortField" className="text-sm mb-2 block">Sort By</Label>
+                      <div className="flex gap-2">
+                        <Select
+                          value={sortOptions.length > 0 ? sortOptions[0].split(':')[0] : ''}
+                          onValueChange={(field) => {
+                            const currentDirection = sortOptions.length > 0 ? sortOptions[0].split(':')[1] || 'asc' : 'asc';
+                            setSortOptions([`${field}:${currentDirection}`]);
+                          }}
+                        >
+                          <SelectTrigger className="flex-1">
+                            <SelectValue placeholder="Select field..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="score">Score (relevance)</SelectItem>
+                            <SelectItem value="updatedAt">Updated At</SelectItem>
+                            <SelectItem value="createdAt">Created At</SelectItem>
+                            <SelectItem value="name">Name</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={sortOptions.length > 0 ? sortOptions[0].split(':')[1] || 'asc' : 'asc'}
+                          onValueChange={(direction) => {
+                            const currentField = sortOptions.length > 0 ? sortOptions[0].split(':')[0] : '';
+                            if (currentField) {
+                              setSortOptions([`${currentField}:${direction}`]);
+                            }
+                          }}
+                          disabled={sortOptions.length === 0 || !sortOptions[0].split(':')[0]}
+                        >
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="asc">Ascending</SelectItem>
+                            <SelectItem value="desc">Descending</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {sortOptions.length > 0 && sortOptions[0].split(':')[0] && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSortOptions([])}
+                            className="h-10"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Format: <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">field:direction</code> (e.g., <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">updatedAt:desc</code>)
+                      </p>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setSortOptions([]);
+                          setShowSort(false);
+                        }}
+                      >
+                        Clear
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setShowSort(false);
+                          if (query.trim()) {
+                            handleSearch(false, 0);
+                          }
+                        }}
+                      >
+                        Apply Sort
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
             <Button 
               onClick={() => handleSearch(false, 0)} 
               disabled={loading} 

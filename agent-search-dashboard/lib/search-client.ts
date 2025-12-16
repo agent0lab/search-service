@@ -21,6 +21,9 @@ export async function searchAgents(request: StandardSearchRequest): Promise<Stan
       filters: request.filters,
       minScore: request.minScore,
       includeMetadata: request.includeMetadata ?? true,
+      name: request.name,
+      chains: request.chains,
+      sort: request.sort,
     }),
   });
 
