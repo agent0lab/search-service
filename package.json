@@ -10,6 +10,7 @@
     "deploy": "wrangler deploy",
     "tail": "wrangler tail",
     "sync:direct": "npx tsx scripts/sync-local-direct.ts",
+    "reindex": "npx tsx scripts/reindex-metadata.ts",
     "test:local": "npx tsx scripts/test-local-queue.ts",
     "type-check": "tsc --noEmit",
     "test": "vitest run",

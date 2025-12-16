@@ -11,6 +11,7 @@ import { RequestLogger } from '../../utils/request-logger.js';
 import { createErrorResponse, ErrorCode } from '../../utils/errors.js';
 import { getRequestId } from '../../middleware/request-id.js';
 import { PROVIDER_NAME, PROVIDER_VERSION } from '../../types.js';
+import { getChains } from '../../utils/config-store.js';
 
 /**
  * Get client IP address from request
@@ -72,11 +73,17 @@ export async function searchHandlerV1(c: Context<{ Bindings: Env }>): Promise<Re
     // Create search manager
     const manager = new SemanticSearchManager(providers.embedding, providers.vectorStore);
 
+    // Helper to get configured chains for multi-chain search
+    const getConfiguredChains = async () => {
+      return getChains(c.env.DB);
+    };
+
     // Perform search using v1 method
     const response: StandardSearchResponse = await manager.searchAgentsV1(
       body,
       PROVIDER_NAME,
-      PROVIDER_VERSION
+      PROVIDER_VERSION,
+      getConfiguredChains
     );
 
     // Set request ID in response

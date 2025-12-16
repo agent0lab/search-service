@@ -156,6 +156,27 @@ export async function validateSearchRequestV1(c: Context<{ Bindings: Env }>, nex
       }
     }
 
+    // Validate name (optional, for substring search)
+    if (request.name !== undefined) {
+      if (typeof request.name !== 'string') {
+        return c.json(createError(new Error('name must be a string'), 400, ErrorCode.VALIDATION_ERROR), 400);
+      }
+    }
+
+    // Validate chains (optional, for multi-chain search)
+    if (request.chains !== undefined) {
+      if (request.chains !== 'all' && (!Array.isArray(request.chains) || !request.chains.every(id => typeof id === 'number' && Number.isInteger(id)))) {
+        return c.json(createError(new Error('chains must be "all" or an array of integers'), 400, ErrorCode.VALIDATION_ERROR), 400);
+      }
+    }
+
+    // Validate sort (optional, for sorting results)
+    if (request.sort !== undefined) {
+      if (!Array.isArray(request.sort) || !request.sort.every(s => typeof s === 'string')) {
+        return c.json(createError(new Error('sort must be an array of strings (format: "field:direction")'), 400, ErrorCode.VALIDATION_ERROR), 400);
+      }
+    }
+
     // Validate filters structure
     if (request.filters !== undefined) {
       if (typeof request.filters !== 'object' || request.filters === null || Array.isArray(request.filters)) {

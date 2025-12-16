@@ -27,7 +27,10 @@ interface SubgraphAgent {
   id: string;
   chainId: string;
   agentId: string;
+  owner?: string | null;
+  operators?: string[] | null;
   updatedAt: string;
+  createdAt?: string | null;
   registrationFile?: {
     id?: string | null;
     name?: string | null;
@@ -43,6 +46,10 @@ interface SubgraphAgent {
     agentWallet?: string | null;
     ens?: string | null;
     did?: string | null;
+    mcpEndpoint?: string | null;
+    mcpVersion?: string | null;
+    a2aEndpoint?: string | null;
+    a2aVersion?: string | null;
   } | null;
 }
 
@@ -273,7 +280,10 @@ export class SemanticSyncRunner {
           id
           chainId
           agentId
+          owner
+          operators
           updatedAt
+          createdAt
           registrationFile {
             id
             name
@@ -289,6 +299,10 @@ export class SemanticSyncRunner {
             agentWallet
             ens
             did
+            mcpEndpoint
+            mcpVersion
+            a2aEndpoint
+            a2aVersion
           }
         }
       }
@@ -327,6 +341,10 @@ export class SemanticSyncRunner {
     const chainId = Number(agent.chainId);
     const reg = agent.registrationFile!;
     
+    // Derive boolean fields from endpoint existence
+    const hasMcpEndpoint = !!(reg.mcpEndpoint && reg.mcpEndpoint.trim() !== '');
+    const hasA2aEndpoint = !!(reg.a2aEndpoint && reg.a2aEndpoint.trim() !== '');
+    
     const metadata: Record<string, unknown> = {
       registrationId: reg.id ?? undefined,
       image: reg.image ?? undefined,
@@ -340,7 +358,17 @@ export class SemanticSyncRunner {
       agentWallet: reg.agentWallet ?? undefined,
       active: reg.active ?? undefined,
       x402support: reg.x402support ?? undefined,
+      mcpEndpoint: reg.mcpEndpoint ?? undefined,
+      mcpVersion: reg.mcpVersion ?? undefined,
+      a2aEndpoint: reg.a2aEndpoint ?? undefined,
+      a2aVersion: reg.a2aVersion ?? undefined,
+      owner: agent.owner ?? undefined,
+      operators: agent.operators ?? undefined,
+      createdAt: agent.createdAt ?? undefined,
       updatedAt: agent.updatedAt,
+      // Derived boolean fields for native Pinecone filtering
+      mcp: hasMcpEndpoint,
+      a2a: hasA2aEndpoint,
     };
     
     return {
