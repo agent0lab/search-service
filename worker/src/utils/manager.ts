@@ -434,8 +434,10 @@ export class SemanticSearchManager {
       tags: agent.tags || [],
       chainId: agent.chainId,
       agentId: agent.agentId,
-      updatedAt: new Date().toISOString(),
+      // Spread agent.metadata first, then set updatedAt only if not already present
       ...(agent.metadata || {}),
+      // Use agent's updatedAt if available, otherwise use current time
+      updatedAt: agent.metadata?.updatedAt ?? new Date().toISOString(),
     };
 
     return {
@@ -452,8 +454,8 @@ export class SemanticSearchManager {
   private applySorting(
     matches: Array<{ id: string; score?: number; metadata?: Record<string, unknown> }>,
     sort: string[]
-  ): Array<{ id: string; score?: number; metadata?: Record<string, unknown> }> {
-    const sorted = [...matches];
+  ): Array<{ id: string; score: number; metadata?: Record<string, unknown> }> {
+    const sorted = matches.map(m => ({ ...m, score: m.score ?? 0 }));
 
     sorted.sort((a, b) => {
       for (const sortSpec of sort) {
@@ -464,8 +466,8 @@ export class SemanticSearchManager {
         let bValue: unknown;
 
         if (field === 'score') {
-          aValue = a.score ?? 0;
-          bValue = b.score ?? 0;
+          aValue = a.score;
+          bValue = b.score;
         } else {
           aValue = a.metadata?.[field];
           bValue = b.metadata?.[field];
@@ -485,7 +487,16 @@ export class SemanticSearchManager {
         // Compare values
         let comparison = 0;
         if (typeof aValue === 'string' && typeof bValue === 'string') {
-          comparison = aValue.localeCompare(bValue);
+          // Check if both are numeric strings (for timestamp fields like createdAt, updatedAt)
+          const aNum = Number(aValue);
+          const bNum = Number(bValue);
+          if (!isNaN(aNum) && !isNaN(bNum) && aValue.trim() === String(aNum) && bValue.trim() === String(bNum)) {
+            // Both are numeric strings - compare as numbers
+            comparison = aNum - bNum;
+          } else {
+            // Regular string comparison (works for ISO dates and other strings)
+            comparison = aValue.localeCompare(bValue);
+          }
         } else if (typeof aValue === 'number' && typeof bValue === 'number') {
           comparison = aValue - bValue;
         } else if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
