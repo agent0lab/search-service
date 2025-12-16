@@ -79,6 +79,14 @@ function SearchContent() {
   // Standard field: chainId (using standard operators)
   const [selectedChainIds, setSelectedChainIds] = useState<number[]>([]);
 
+  // New filter state for API extensions
+  const [nameFilter, setNameFilter] = useState<string>('');
+  const [sortOptions, setSortOptions] = useState<string[]>([]);
+  const [mcpFilter, setMcpFilter] = useState<boolean | null>(null);
+  const [a2aFilter, setA2aFilter] = useState<boolean | null>(null);
+  const [ownerFilter, setOwnerFilter] = useState<string>('');
+  const [operatorsFilter, setOperatorsFilter] = useState<string[]>([]);
+
   // Restore view mode from localStorage
   useEffect(() => {
     const savedViewMode = localStorage.getItem('agent-view-mode') as 'card' | 'table' | null;
@@ -275,18 +283,39 @@ function SearchContent() {
       // Transform filters to v1 standard format (standard fields only)
       const filters: StandardFilters = {};
       
-      // Chain IDs - use equals for single, in for multiple
+      // Chain IDs - use chains parameter instead of/in addition to filters
+      // The backend will handle chains parameter and merge it into filters
+      let chainsParam: number[] | 'all' | undefined = undefined;
       if (selectedChainIds.length > 0) {
-        if (selectedChainIds.length === 1) {
-          filters.equals = { ...filters.equals, chainId: selectedChainIds[0] };
+        if (selectedChainIds.length === availableChainIds.length) {
+          // All chains selected - use 'all'
+          chainsParam = 'all';
         } else {
-          filters.in = { ...filters.in, chainId: selectedChainIds };
+          chainsParam = selectedChainIds;
         }
       }
       
       // Standard field filters from UI (active, x402support, etc.)
       if (Object.keys(equalsFilters).length > 0) {
         filters.equals = { ...filters.equals, ...equalsFilters };
+      }
+      
+      // Add MCP and A2A filters if set
+      if (mcpFilter !== null) {
+        filters.equals = { ...filters.equals, mcp: mcpFilter };
+      }
+      if (a2aFilter !== null) {
+        filters.equals = { ...filters.equals, a2a: a2aFilter };
+      }
+      
+      // Add owner filter if set
+      if (ownerFilter.trim() !== '') {
+        filters.equals = { ...filters.equals, owner: ownerFilter.trim() };
+      }
+      
+      // Add operators filter if set
+      if (operatorsFilter.length > 0) {
+        filters.in = { ...filters.in, operators: operatorsFilter };
       }
       
       // Custom in filters (for standard fields like supportedTrusts, mcpTools, etc.)
@@ -313,6 +342,21 @@ function SearchContent() {
         limit: Math.min(limit, 10), // Max 10
         includeMetadata: true,
       };
+      
+      // Add name substring search if set
+      if (nameFilter.trim() !== '') {
+        request.name = nameFilter.trim();
+      }
+      
+      // Add chains parameter if set
+      if (chainsParam) {
+        request.chains = chainsParam;
+      }
+      
+      // Add sort parameter if set
+      if (sortOptions.length > 0 && sortOptions[0].split(':')[0]) {
+        request.sort = sortOptions;
+      }
 
       // Use cursor if available, otherwise fall back to offset-based pagination
       if (useCursor && cursor) {
@@ -527,6 +571,24 @@ function SearchContent() {
                 className="pl-10 h-11 transition-all focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
             </div>
+            <div className="w-64 relative group">
+              <Input
+                type="text"
+                placeholder="Filter by agent name (optional)..."
+                value={nameFilter}
+                onChange={(e) => setNameFilter(e.target.value)}
+                onKeyPress={handleKeyPress}
+                className="h-11 transition-all focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              />
+              {nameFilter && (
+                <button
+                  onClick={() => setNameFilter('')}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
             <Dialog open={showFilters} onOpenChange={setShowFilters}>
               <DialogTrigger asChild>
                 <Button
@@ -535,9 +597,9 @@ function SearchContent() {
                 >
                   <Filter className="h-4 w-4 mr-2" />
                   Advanced Filters
-                  {(selectedChainIds.length > 0 || Object.keys(equalsFilters).length > 0 || Object.keys(inFilters).length > 0 || Object.keys(notInFilters).length > 0 || existsFields.length > 0 || notExistsFields.length > 0) && (
+                  {(selectedChainIds.length > 0 || Object.keys(equalsFilters).length > 0 || Object.keys(inFilters).length > 0 || Object.keys(notInFilters).length > 0 || existsFields.length > 0 || notExistsFields.length > 0 || nameFilter.trim() !== '' || sortOptions.length > 0 || mcpFilter !== null || a2aFilter !== null || ownerFilter.trim() !== '' || operatorsFilter.length > 0) && (
                     <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
-                      {selectedChainIds.length + Object.keys(equalsFilters).length + Object.keys(inFilters).length + Object.keys(notInFilters).length + existsFields.length + notExistsFields.length}
+                      {selectedChainIds.length + Object.keys(equalsFilters).length + Object.keys(inFilters).length + Object.keys(notInFilters).length + existsFields.length + notExistsFields.length + (nameFilter.trim() !== '' ? 1 : 0) + sortOptions.length + (mcpFilter !== null ? 1 : 0) + (a2aFilter !== null ? 1 : 0) + (ownerFilter.trim() !== '' ? 1 : 0) + operatorsFilter.length}
                     </Badge>
                   )}
                 </Button>
@@ -655,7 +717,7 @@ function SearchContent() {
                               <Badge variant="outline" className="font-mono">notExists</Badge>
                             </div>
                             <p className="text-xs text-muted-foreground">
-                              <strong>Supported Standard Fields:</strong> id, cid, agentId, name, description, image, active, x402support, supportedTrusts, mcpEndpoint, mcpVersion, a2aEndpoint, a2aVersion, ens, did, agentWallet, agentWalletChainId, mcpTools, mcpPrompts, mcpResources, a2aSkills, chainId, createdAt
+                              <strong>Supported Standard Fields:</strong> id, cid, agentId, name, description, image, active, x402support, supportedTrusts, mcpEndpoint, mcpVersion, a2aEndpoint, a2aVersion, ens, did, agentWallet, agentWalletChainId, mcpTools, mcpPrompts, mcpResources, a2aSkills, chainId, createdAt, owner, operators, mcp, a2a
                             </p>
                           </div>
                           
@@ -719,6 +781,120 @@ function SearchContent() {
                                   Uses <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">equals</code> operator
                                 </p>
                               </div>
+
+                              <div>
+                                <Label htmlFor="mcpFilter" className="text-xs">MCP Support</Label>
+                                <Select
+                                  value={mcpFilter !== null ? String(mcpFilter) : 'all'}
+                                  onValueChange={(value) => {
+                                    if (value === 'all') {
+                                      setMcpFilter(null);
+                                    } else {
+                                      setMcpFilter(value === 'true');
+                                    }
+                                  }}
+                                >
+                                  <SelectTrigger className="w-full mt-1">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="all">All</SelectItem>
+                                    <SelectItem value="true">Has MCP endpoint</SelectItem>
+                                    <SelectItem value="false">No MCP endpoint</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Uses <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">equals</code> operator on <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">mcp</code> field
+                                </p>
+                              </div>
+
+                              <div>
+                                <Label htmlFor="a2aFilter" className="text-xs">A2A Support</Label>
+                                <Select
+                                  value={a2aFilter !== null ? String(a2aFilter) : 'all'}
+                                  onValueChange={(value) => {
+                                    if (value === 'all') {
+                                      setA2aFilter(null);
+                                    } else {
+                                      setA2aFilter(value === 'true');
+                                    }
+                                  }}
+                                >
+                                  <SelectTrigger className="w-full mt-1">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="all">All</SelectItem>
+                                    <SelectItem value="true">Has A2A endpoint</SelectItem>
+                                    <SelectItem value="false">No A2A endpoint</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Uses <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">equals</code> operator on <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">a2a</code> field
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <Separator />
+                          
+                          <div>
+                            <Label className="text-sm font-medium mb-2 block">Sorting</Label>
+                            <div className="space-y-2">
+                              <div>
+                                <Label htmlFor="sortField" className="text-xs">Sort By</Label>
+                                <div className="flex gap-2 mt-1">
+                                  <Select
+                                    value={sortOptions.length > 0 ? sortOptions[0].split(':')[0] : ''}
+                                    onValueChange={(field) => {
+                                      const currentDirection = sortOptions.length > 0 ? sortOptions[0].split(':')[1] || 'asc' : 'asc';
+                                      setSortOptions([`${field}:${currentDirection}`]);
+                                    }}
+                                  >
+                                    <SelectTrigger className="flex-1">
+                                      <SelectValue placeholder="Select field..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="">None</SelectItem>
+                                      <SelectItem value="score">Score (relevance)</SelectItem>
+                                      <SelectItem value="updatedAt">Updated At</SelectItem>
+                                      <SelectItem value="createdAt">Created At</SelectItem>
+                                      <SelectItem value="name">Name</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <Select
+                                    value={sortOptions.length > 0 ? sortOptions[0].split(':')[1] || 'asc' : 'asc'}
+                                    onValueChange={(direction) => {
+                                      const currentField = sortOptions.length > 0 ? sortOptions[0].split(':')[0] : '';
+                                      if (currentField) {
+                                        setSortOptions([`${currentField}:${direction}`]);
+                                      }
+                                    }}
+                                    disabled={sortOptions.length === 0 || !sortOptions[0].split(':')[0]}
+                                  >
+                                    <SelectTrigger className="w-32">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="asc">Ascending</SelectItem>
+                                      <SelectItem value="desc">Descending</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  {sortOptions.length > 0 && sortOptions[0].split(':')[0] && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => setSortOptions([])}
+                                      className="h-10"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Format: <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">field:direction</code> (e.g., <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">updatedAt:desc</code>)
+                                </p>
+                              </div>
                             </div>
                           </div>
                           
@@ -759,6 +935,45 @@ function SearchContent() {
                                 />
                                 <p className="text-xs text-muted-foreground mt-1">
                                   Uses <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">notExists</code> operator
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <Separator />
+                          
+                          <div>
+                            <Label className="text-sm font-medium mb-2 block">Owner & Operators Filters</Label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <Label htmlFor="ownerFilter" className="text-xs">Owner Address</Label>
+                                <Input
+                                  id="ownerFilter"
+                                  type="text"
+                                  placeholder="0x..."
+                                  value={ownerFilter}
+                                  onChange={(e) => setOwnerFilter(e.target.value)}
+                                  className="mt-1 font-mono text-xs"
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Uses <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">equals</code> operator on <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">owner</code> field
+                                </p>
+                              </div>
+                              <div>
+                                <Label htmlFor="operatorsFilter" className="text-xs">Operators (comma-separated)</Label>
+                                <Input
+                                  id="operatorsFilter"
+                                  type="text"
+                                  placeholder="0x..., 0x..."
+                                  value={operatorsFilter.join(', ')}
+                                  onChange={(e) => {
+                                    const operators = e.target.value.split(',').map(o => o.trim()).filter(o => o);
+                                    setOperatorsFilter(operators);
+                                  }}
+                                  className="mt-1 font-mono text-xs"
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Uses <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">in</code> operator on <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">operators</code> field
                                 </p>
                               </div>
                             </div>
