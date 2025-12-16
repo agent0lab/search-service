@@ -43,3 +43,11 @@ queue = "indexing-queue"
 max_batch_size = 10
 max_batch_timeout = 30
 
+# Observability configuration
+[observability]
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+persist = true
+

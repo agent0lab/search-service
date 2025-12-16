@@ -457,7 +457,7 @@ export class SemanticSearchManager {
 
     sorted.sort((a, b) => {
       for (const sortSpec of sort) {
-        const [field, direction = 'asc'] = sortSpec.split(':');
+        const [field, direction = 'asc'] = sortSpec.split(':').map(s => s.trim());
         const dir = direction.toLowerCase() === 'desc' ? -1 : 1;
 
         let aValue: unknown;
