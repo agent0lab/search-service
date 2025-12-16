@@ -63,7 +63,7 @@ export class VeniceEmbeddingProvider implements EmbeddingProvider {
       ? `Outputs: ${agent.defaultOutputModes.join(', ')}`
       : '';
 
-    return [
+    const text = [
       agent.name,
       agent.description,
       skills,
@@ -74,6 +74,15 @@ export class VeniceEmbeddingProvider implements EmbeddingProvider {
     ]
       .filter(Boolean)
       .join('. ');
+
+    // Truncate to approximately 8000 tokens (rough estimate: 1 token ≈ 4 characters)
+    // Leave some buffer for safety (8192 token limit)
+    const maxChars = 30000; // ~7500 tokens, leaving buffer
+    if (text.length > maxChars) {
+      return text.substring(0, maxChars);
+    }
+
+    return text;
   }
 
   private async executeRequest(body: Record<string, unknown>): Promise<VeniceEmbeddingResponse> {
@@ -112,9 +121,34 @@ export class VeniceEmbeddingProvider implements EmbeddingProvider {
       return '';
     }
 
+    // Only include short, relevant metadata fields for embedding
+    // Exclude arrays, long strings, and complex objects
     const entries = Object.entries(metadata)
-      .filter(([, value]) => typeof value === 'string' || typeof value === 'number')
-      .map(([key, value]) => `${key}: ${String(value)}`);
+      .filter(([key, value]) => {
+        // Skip arrays (they're already in capabilities/tags)
+        if (Array.isArray(value)) {
+          return false;
+        }
+        // Skip complex objects
+        if (typeof value === 'object' && value !== null) {
+          return false;
+        }
+        // Only include short strings (max 200 chars) and numbers/booleans
+        if (typeof value === 'string' && value.length > 200) {
+          return false;
+        }
+        // Skip certain fields that are too verbose or not useful for semantic search
+        const skipFields = ['registrationId', 'image', 'agentWallet', 'mcpEndpoint', 'a2aEndpoint', 'updatedAt', 'createdAt'];
+        if (skipFields.includes(key)) {
+          return false;
+        }
+        return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+      })
+      .map(([key, value]) => {
+        // Truncate long string values
+        const strValue = String(value);
+        return `${key}: ${strValue.length > 100 ? strValue.substring(0, 100) + '...' : strValue}`;
+      });
 
     return entries.length > 0 ? `Metadata: ${entries.join(', ')}` : '';
   }

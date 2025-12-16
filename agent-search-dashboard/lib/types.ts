@@ -155,6 +155,10 @@ export interface StandardSearchRequest {
   filters?: StandardFilters;
   minScore?: number;
   includeMetadata?: boolean;
+  // Optional extensions for SearchParams compatibility
+  name?: string; // Substring search for name (post-filtered)
+  chains?: number[] | 'all'; // Multi-chain search support
+  sort?: string[]; // Sort by fields (e.g., ["updatedAt:desc", "name:asc"])
 }
 
 // Pagination Metadata

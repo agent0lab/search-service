@@ -44,6 +44,47 @@ const CURSOR_PAGINATION_EXAMPLE = `curl -s -X POST ${API_ENDPOINT} \\
     "cursor": "eyJvZmZzZXQiOjEwfQ"
   }' | jq '.'`;
 
+const NAME_SEARCH_EXAMPLE = `curl -s -X POST ${API_ENDPOINT} \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "query": "trading agent",
+    "name": "DeFi",
+    "limit": 10
+  }' | jq '.'`;
+
+const MULTI_CHAIN_EXAMPLE = `curl -s -X POST ${API_ENDPOINT} \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "query": "agent",
+    "chains": [11155111, 84532],
+    "limit": 10
+  }' | jq '.'`;
+
+const SORTING_EXAMPLE = `curl -s -X POST ${API_ENDPOINT} \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "query": "agent",
+    "sort": ["updatedAt:desc", "name:asc"],
+    "limit": 10
+  }' | jq '.'`;
+
+const NEW_FILTERS_EXAMPLE = `curl -s -X POST ${API_ENDPOINT} \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "query": "agent",
+    "filters": {
+      "equals": {
+        "mcp": true,
+        "a2a": false,
+        "active": true
+      },
+      "in": {
+        "operators": ["0x123...", "0x456..."]
+      }
+    },
+    "limit": 10
+  }' | jq '.'`;
+
 function CodeBlock({ code, title }: { code: string; title: string }) {
   const [copied, setCopied] = useState(false);
 
@@ -161,6 +202,18 @@ export default function ApiDocsPage() {
                     <Badge variant="outline" className="font-mono">includeMetadata</Badge>
                     <span className="text-muted-foreground">(optional) - Include full metadata in results (default: true)</span>
                   </div>
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="font-mono">name</Badge>
+                    <span className="text-muted-foreground">(optional) - Substring search for agent name (post-filtered after semantic search)</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="font-mono">chains</Badge>
+                    <span className="text-muted-foreground">(optional) - Multi-chain search: array of chain IDs (e.g., [11155111, 84532]) or &quot;all&quot; for all configured chains</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="font-mono">sort</Badge>
+                    <span className="text-muted-foreground">(optional) - Sort results by fields: array of strings in format [&quot;field:direction&quot;] (e.g., [&quot;updatedAt:desc&quot;, &quot;name:asc&quot;])</span>
+                  </div>
                 </div>
               </div>
 
@@ -216,6 +269,50 @@ export default function ApiDocsPage() {
                     <Badge variant="outline" className="font-mono">defaultOutputMode</Badge>
                     <span className="text-muted-foreground">- Output mode (use equals operator)</span>
                   </div>
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="font-mono">owner</Badge>
+                    <span className="text-muted-foreground">- Agent owner address (use equals operator)</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="font-mono">operators</Badge>
+                    <span className="text-muted-foreground">- Array of operator addresses (use in operator)</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="font-mono">mcp</Badge>
+                    <span className="text-muted-foreground">- Boolean: agent has MCP endpoint (use equals operator, derived from mcpEndpoint existence)</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="font-mono">a2a</Badge>
+                    <span className="text-muted-foreground">- Boolean: agent has A2A endpoint (use equals operator, derived from a2aEndpoint existence)</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="font-mono">active</Badge>
+                    <span className="text-muted-foreground">- Boolean: agent is active (use equals operator)</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="font-mono">x402support</Badge>
+                    <span className="text-muted-foreground">- Boolean: agent supports x402 (use equals operator)</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="font-mono">mcpTools, mcpPrompts, mcpResources, a2aSkills</Badge>
+                    <span className="text-muted-foreground">- Arrays of capability strings (use in operator)</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="font-mono">supportedTrusts</Badge>
+                    <span className="text-muted-foreground">- Array of trust model strings (use in operator)</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="font-mono">ens</Badge>
+                    <span className="text-muted-foreground">- ENS domain name (use equals operator for exact match, case-insensitive)</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="font-mono">did</Badge>
+                    <span className="text-muted-foreground">- DID (Decentralized Identifier) - W3C standard for self-sovereign identity (use equals operator for exact match)</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="font-mono">createdAt, updatedAt</Badge>
+                    <span className="text-muted-foreground">- Timestamps (use equals operator for exact match, or sort by these fields)</span>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -268,6 +365,41 @@ export default function ApiDocsPage() {
 
           <Card>
             <CardHeader>
+              <CardTitle>Features</CardTitle>
+              <CardDescription>Additional capabilities and features supported by the API</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 text-sm">
+                <div className="flex items-start gap-2">
+                  <Badge variant="outline" className="font-mono">nameSubstringSearch</Badge>
+                  <span className="text-muted-foreground">- Post-filtered substring search for agent names. Use the <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">name</code> parameter to filter results by agent name after semantic search.</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Badge variant="outline" className="font-mono">multiChainSearch</Badge>
+                  <span className="text-muted-foreground">- Search across multiple blockchain networks using the <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">chains</code> parameter. Supports array of chain IDs or &quot;all&quot; for all configured chains.</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Badge variant="outline" className="font-mono">sorting</Badge>
+                  <span className="text-muted-foreground">- Sort search results by metadata fields using the <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">sort</code> parameter. Format: [&quot;field:direction&quot;] where field can be score, updatedAt, createdAt, name, etc.</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Badge variant="outline" className="font-mono">nativeArrayFiltering</Badge>
+                  <span className="text-muted-foreground">- Native Pinecone array filtering using the <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">in</code> operator for array fields like capabilities, tags, mcpTools, etc.</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Badge variant="outline" className="font-mono">cursorPagination</Badge>
+                  <span className="text-muted-foreground">- Efficient cursor-based pagination for large result sets. Use the <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">cursor</code> parameter from previous responses.</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Badge variant="outline" className="font-mono">metadataFiltering</Badge>
+                  <span className="text-muted-foreground">- Comprehensive metadata filtering using standard operators (equals, in, notIn, exists, notExists) on all indexed fields.</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>Examples</CardTitle>
               <CardDescription>Copy and run these examples to get started</CardDescription>
             </CardHeader>
@@ -301,6 +433,38 @@ export default function ApiDocsPage() {
                 <CodeBlock code={CURSOR_PAGINATION_EXAMPLE} title="Pagination using cursor" />
                 <p className="text-sm text-muted-foreground mt-2">
                   Use the cursor from the previous response&apos;s pagination.nextCursor field for efficient pagination. Cursor takes precedence over offset when both are provided.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-3">Name Substring Search</h3>
+                <CodeBlock code={NAME_SEARCH_EXAMPLE} title="Name substring search" />
+                <p className="text-sm text-muted-foreground mt-2">
+                  Filter results by agent name using substring matching. This is applied as a post-filter after the semantic search.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-3">Multi-Chain Search</h3>
+                <CodeBlock code={MULTI_CHAIN_EXAMPLE} title="Multi-chain search" />
+                <p className="text-sm text-muted-foreground mt-2">
+                  Search across multiple blockchain networks using the chains parameter. Use an array of chain IDs or &quot;all&quot; to search all configured chains.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-3">Sorting Results</h3>
+                <CodeBlock code={SORTING_EXAMPLE} title="Sorting search results" />
+                <p className="text-sm text-muted-foreground mt-2">
+                  Sort results by one or more fields. Format: [&quot;field:direction&quot;] where direction is &quot;asc&quot; or &quot;desc&quot;. Supported fields: score, updatedAt, createdAt, name.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-3">New Filter Fields (MCP, A2A, Owner, Operators)</h3>
+                <CodeBlock code={NEW_FILTERS_EXAMPLE} title="Using new filter fields" />
+                <p className="text-sm text-muted-foreground mt-2">
+                  Filter by MCP/A2A endpoint support (boolean fields), owner address, or operator addresses using standard filter operators.
                 </p>
               </div>
             </CardContent>

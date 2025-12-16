@@ -32,6 +32,11 @@ const SUPPORTED_FILTERS = [
   'a2aSkills',
   'chainId',
   'createdAt',
+  // Additional fields for SearchParams compatibility
+  'owner',
+  'operators',
+  'mcp', // Derived boolean from mcpEndpoint
+  'a2a', // Derived boolean from a2aEndpoint
   // Additional fields from current implementation
   'capabilities',
   'defaultInputModes',
@@ -60,6 +65,10 @@ export async function capabilitiesHandler(c: Context<{ Bindings: Env }>): Promis
       cursorPagination: true,
       metadataFiltering: true,
       scoreThreshold: true,
+      nameSubstringSearch: true, // Post-filtered substring search
+      multiChainSearch: true, // Support for chains parameter
+      sorting: true, // Support for sort parameter
+      nativeArrayFiltering: true, // Native Pinecone $in operator for arrays
     },
   };
 
