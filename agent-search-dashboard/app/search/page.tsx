@@ -855,7 +855,6 @@ function SearchContent() {
                                       <SelectValue placeholder="Select field..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      <SelectItem value="">None</SelectItem>
                                       <SelectItem value="score">Score (relevance)</SelectItem>
                                       <SelectItem value="updatedAt">Updated At</SelectItem>
                                       <SelectItem value="createdAt">Created At</SelectItem>
