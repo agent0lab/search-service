@@ -302,6 +302,14 @@ export default function ApiDocsPage() {
                     <span className="text-muted-foreground">- Array of trust model strings (use in operator)</span>
                   </div>
                   <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="font-mono">ens</Badge>
+                    <span className="text-muted-foreground">- ENS domain name (use equals operator for exact match, case-insensitive)</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Badge variant="outline" className="font-mono">did</Badge>
+                    <span className="text-muted-foreground">- DID (Decentralized Identifier) - W3C standard for self-sovereign identity (use equals operator for exact match)</span>
+                  </div>
+                  <div className="flex items-start gap-2">
                     <Badge variant="outline" className="font-mono">createdAt, updatedAt</Badge>
                     <span className="text-muted-foreground">- Timestamps (use equals operator for exact match, or sort by these fields)</span>
                   </div>

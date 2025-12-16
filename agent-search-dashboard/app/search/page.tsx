@@ -86,6 +86,8 @@ function SearchContent() {
   const [a2aFilter, setA2aFilter] = useState<boolean | null>(null);
   const [ownerFilter, setOwnerFilter] = useState<string>('');
   const [operatorsFilter, setOperatorsFilter] = useState<string[]>([]);
+  const [walletAddressFilter, setWalletAddressFilter] = useState<string>('');
+  const [supportedTrustsFilter, setSupportedTrustsFilter] = useState<string[]>([]);
 
   // Restore view mode from localStorage
   useEffect(() => {
@@ -318,7 +320,17 @@ function SearchContent() {
         filters.in = { ...filters.in, operators: operatorsFilter };
       }
       
-      // Custom in filters (for standard fields like supportedTrusts, mcpTools, etc.)
+      // Add wallet address filter if set
+      if (walletAddressFilter.trim() !== '') {
+        filters.equals = { ...filters.equals, agentWallet: walletAddressFilter.trim() };
+      }
+      
+      // Add supportedTrusts filter if set
+      if (supportedTrustsFilter.length > 0) {
+        filters.in = { ...filters.in, supportedTrusts: supportedTrustsFilter };
+      }
+      
+      // Custom in filters (for standard fields like mcpTools, a2aSkills, etc.)
       if (Object.keys(inFilters).length > 0) {
         filters.in = { ...filters.in, ...inFilters };
       }
@@ -525,6 +537,14 @@ function SearchContent() {
     setNotInFilters({});
     setExistsFields([]);
     setNotExistsFields([]);
+    setNameFilter('');
+    setSortOptions([]);
+    setMcpFilter(null);
+    setA2aFilter(null);
+    setOwnerFilter('');
+    setOperatorsFilter([]);
+    setWalletAddressFilter('');
+    setSupportedTrustsFilter([]);
     // Reset pagination
     setOffset(0);
     setCursor(null);
@@ -597,9 +617,9 @@ function SearchContent() {
                 >
                   <Filter className="h-4 w-4 mr-2" />
                   Advanced Filters
-                  {(selectedChainIds.length > 0 || Object.keys(equalsFilters).length > 0 || Object.keys(inFilters).length > 0 || Object.keys(notInFilters).length > 0 || existsFields.length > 0 || notExistsFields.length > 0 || nameFilter.trim() !== '' || sortOptions.length > 0 || mcpFilter !== null || a2aFilter !== null || ownerFilter.trim() !== '' || operatorsFilter.length > 0) && (
+                  {(selectedChainIds.length > 0 || Object.keys(equalsFilters).length > 0 || Object.keys(inFilters).length > 0 || Object.keys(notInFilters).length > 0 || existsFields.length > 0 || notExistsFields.length > 0 || nameFilter.trim() !== '' || sortOptions.length > 0 || mcpFilter !== null || a2aFilter !== null || ownerFilter.trim() !== '' || operatorsFilter.length > 0 || walletAddressFilter.trim() !== '' || supportedTrustsFilter.length > 0) && (
                     <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
-                      {selectedChainIds.length + Object.keys(equalsFilters).length + Object.keys(inFilters).length + Object.keys(notInFilters).length + existsFields.length + notExistsFields.length + (nameFilter.trim() !== '' ? 1 : 0) + sortOptions.length + (mcpFilter !== null ? 1 : 0) + (a2aFilter !== null ? 1 : 0) + (ownerFilter.trim() !== '' ? 1 : 0) + operatorsFilter.length}
+                      {selectedChainIds.length + Object.keys(equalsFilters).length + Object.keys(inFilters).length + Object.keys(notInFilters).length + existsFields.length + notExistsFields.length + (nameFilter.trim() !== '' ? 1 : 0) + sortOptions.length + (mcpFilter !== null ? 1 : 0) + (a2aFilter !== null ? 1 : 0) + (ownerFilter.trim() !== '' ? 1 : 0) + operatorsFilter.length + (walletAddressFilter.trim() !== '' ? 1 : 0) + supportedTrustsFilter.length}
                     </Badge>
                   )}
                 </Button>
@@ -942,7 +962,7 @@ function SearchContent() {
                           <Separator />
                           
                           <div>
-                            <Label className="text-sm font-medium mb-2 block">Owner & Operators Filters</Label>
+                            <Label className="text-sm font-medium mb-2 block">Owner, Operators & Wallet Filters</Label>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
                                 <Label htmlFor="ownerFilter" className="text-xs">Owner Address</Label>
@@ -973,6 +993,37 @@ function SearchContent() {
                                 />
                                 <p className="text-xs text-muted-foreground mt-1">
                                   Uses <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">in</code> operator on <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">operators</code> field
+                                </p>
+                              </div>
+                              <div>
+                                <Label htmlFor="walletAddressFilter" className="text-xs">Wallet Address</Label>
+                                <Input
+                                  id="walletAddressFilter"
+                                  type="text"
+                                  placeholder="0x..."
+                                  value={walletAddressFilter}
+                                  onChange={(e) => setWalletAddressFilter(e.target.value)}
+                                  className="mt-1 font-mono text-xs"
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Uses <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">equals</code> operator on <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">agentWallet</code> field
+                                </p>
+                              </div>
+                              <div>
+                                <Label htmlFor="supportedTrustsFilter" className="text-xs">Supported Trusts (comma-separated)</Label>
+                                <Input
+                                  id="supportedTrustsFilter"
+                                  type="text"
+                                  placeholder="reputation, crypto-economic, ..."
+                                  value={supportedTrustsFilter.join(', ')}
+                                  onChange={(e) => {
+                                    const trusts = e.target.value.split(',').map(t => t.trim()).filter(t => t);
+                                    setSupportedTrustsFilter(trusts);
+                                  }}
+                                  className="mt-1"
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Uses <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">in</code> operator on <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">supportedTrusts</code> field
                                 </p>
                               </div>
                             </div>
