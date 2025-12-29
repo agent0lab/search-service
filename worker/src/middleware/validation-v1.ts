@@ -12,6 +12,58 @@ const MAX_REQUEST_SIZE = 1048576; // 1MB
 const MAX_FILTERS = 50;
 
 /**
+ * Parse cursor offset from supported cursor formats.
+ *
+ * Supported:
+ * - "10" (SDK single-chain cursor)
+ * - '{"_global_offset":10}' (SDK multi-chain cursor; we read _global_offset)
+ * - legacy base64('{"offset":10}')
+ */
+function parseCursorOffset(cursor: string): number | null {
+  const trimmed = cursor.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  // 1) Plain integer
+  if (/^\d+$/.test(trimmed)) {
+    return parseInt(trimmed, 10);
+  }
+
+  // 2) JSON cursor
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    if (parsed && typeof parsed === 'object') {
+      const obj = parsed as Record<string, unknown>;
+      if (typeof obj.offset === 'number' && Number.isFinite(obj.offset)) {
+        return Math.max(0, Math.floor(obj.offset));
+      }
+      if (typeof obj._global_offset === 'number' && Number.isFinite(obj._global_offset)) {
+        return Math.max(0, Math.floor(obj._global_offset));
+      }
+    }
+  } catch {
+    // Not JSON - continue
+  }
+
+  // 3) Legacy base64(JSON)
+  try {
+    const json = atob(trimmed);
+    const parsed = JSON.parse(json) as unknown;
+    if (parsed && typeof parsed === 'object') {
+      const obj = parsed as Record<string, unknown>;
+      if (typeof obj.offset === 'number' && Number.isFinite(obj.offset)) {
+        return Math.max(0, Math.floor(obj.offset));
+      }
+    }
+  } catch {
+    // Not legacy base64 either
+  }
+
+  return null;
+}
+
+/**
  * Validate standard search request
  */
 export async function validateSearchRequestV1(c: Context<{ Bindings: Env }>, next: Next) {
@@ -115,26 +167,20 @@ export async function validateSearchRequestV1(c: Context<{ Bindings: Env }>, nex
       }
       
       // Decode cursor to validate offset (if cursor is provided, it takes precedence over offset)
-      try {
-        const cursorJson = atob(request.cursor);
-        const cursorData = JSON.parse(cursorJson) as { offset?: number };
-        if (cursorData.offset !== undefined) {
-          const limit = request.limit ?? 10;
-          const maxOffset = MAX_TOP_K - (limit * 3);
-          if (cursorData.offset > maxOffset) {
-            return c.json(
-              createError(
-                new Error(`Cursor offset cannot exceed ${maxOffset} (based on limit=${limit} and Pinecone's max topK=${MAX_TOP_K})`),
-                400,
-                ErrorCode.VALIDATION_ERROR
-              ),
-              400
-            );
-          }
+      const parsedOffset = parseCursorOffset(request.cursor);
+      if (parsedOffset !== null) {
+        const limit = request.limit ?? 10;
+        const maxOffset = MAX_TOP_K - (limit * 3);
+        if (parsedOffset > maxOffset) {
+          return c.json(
+            createError(
+              new Error(`Cursor offset cannot exceed ${maxOffset} (based on limit=${limit} and Pinecone's max topK=${MAX_TOP_K})`),
+              400,
+              ErrorCode.VALIDATION_ERROR
+            ),
+            400
+          );
         }
-      } catch {
-        // Invalid cursor format - will be handled by pagination decoder
-        // We don't fail here to allow the handler to provide a better error message
       }
     }
 

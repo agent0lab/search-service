@@ -307,7 +307,7 @@ describe('V1 Standard API', () => {
         body: JSON.stringify({
           query: 'agent',
           limit: 5,
-          cursor: 'eyJvZmZzZXQiOjEwfQ',
+          cursor: '10',
         }),
       });
 
@@ -319,6 +319,22 @@ describe('V1 Standard API', () => {
           expect(data.pagination).toHaveProperty('limit');
         }
       }
+    });
+
+    it('should accept legacy base64(JSON) cursor for backward compatibility', async () => {
+      const res = await fetch(`${V1_BASE}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: 'agent',
+          limit: 5,
+          // legacy service cursor: base64('{"offset":10}')
+          cursor: 'eyJvZmZzZXQiOjEwfQ',
+        }),
+      });
+
+      // Should not be a validation error
+      expect(res.status).not.toBe(400);
     });
 
     it('should validate maximum offset based on limit and Pinecone constraints', async () => {

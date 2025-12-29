@@ -31,7 +31,7 @@ const SEARCH_REQUEST_SCHEMA = {
     },
     cursor: {
       type: 'string',
-      description: 'Cursor for cursor-based pagination',
+      description: 'Cursor for cursor-based pagination. SDK-compatible format: decimal string offset (e.g., "10"). Also accepts JSON string cursors with "_global_offset" and legacy base64(JSON) cursors.',
     },
     filters: {
       type: 'object',

@@ -648,10 +648,15 @@ Response includes:
 
 ### Cursor-based Pagination (Preferred)
 
+Cursor format is **SDK-compatible**:
+
+- `cursor` and `nextCursor` are **decimal string offsets** (e.g., `"0"`, `"10"`, `"25"`), representing the number of items already returned.
+- Providers MAY additionally accept a raw JSON string cursor containing `"_global_offset"` for multi-chain pagination, but the recommended portable format is the decimal string offset.
+
 ```json
 {
   "limit": 10,
-  "cursor": "eyJvZmZzZXQiOjEwfQ"
+  "cursor": "10"
 }
 ```
 
@@ -661,7 +666,7 @@ Response includes:
 {
   "pagination": {
     "hasMore": true,
-    "nextCursor": "eyJvZmZzZXQiOjIwfQ",
+    "nextCursor": "20",
     "limit": 10
   }
 }
@@ -824,7 +829,7 @@ curl -X POST https://provider.example.com/api/v1/search \
   -d '{
     "query": "portfolio management",
     "limit": 20,
-    "cursor": "eyJvZmZzZXQiOjIwfQ"
+    "cursor": "20"
   }'
 ```
 
