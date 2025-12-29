@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SDK } from 'agent0-sdk';
-
-// Default subgraph URLs (matching agent0-sdk)
-const DEFAULT_SUBGRAPH_URLS: Record<number, string> = {
-  11155111: 'https://gateway.thegraph.com/api/00a452ad3cd1900273ea62c1bf283f93/subgraphs/id/6wQRC7geo9XYAhckfmfo8kbMRLeWU8KQd3XsJqFKmZLT', // Ethereum Sepolia
-  84532: 'https://gateway.thegraph.com/api/00a452ad3cd1900273ea62c1bf283f93/subgraphs/id/GjQEDgEKqoh5Yc8MUgxoQoRATEJdEiH7HbocfR1aFiHa', // Base Sepolia
-  80002: 'https://gateway.thegraph.com/api/00a452ad3cd1900273ea62c1bf283f93/subgraphs/id/2A1JB18r1mF2VNP4QBH4mmxd74kbHoM6xLXC8ABAKf7j', // Polygon Amoy
-};
+import { getSubgraphUrl } from '../../../../lib/subgraph-endpoints';
 
 // RPC URLs for SDK initialization (read-only, no signer needed)
 const RPC_URLS: Record<number, string> = {
@@ -89,8 +83,8 @@ export async function GET(
       );
     }
 
-    // Use SDK to get agent data
-    const subgraphUrl = DEFAULT_SUBGRAPH_URLS[chainId];
+    // Use centralized subgraph endpoints mapping
+    const subgraphUrl = getSubgraphUrl(chainId);
     
     if (!subgraphUrl) {
       return NextResponse.json(

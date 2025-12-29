@@ -8,6 +8,7 @@ import type {
 import type { EmbeddingProvider, VectorStoreProvider } from './interfaces.js';
 import { normalizeSemanticSyncState, computeAgentHash } from './sync-state.js';
 import { SemanticSearchManager } from './manager.js';
+import { getDefaultSubgraphEndpoints } from './subgraph-config.js';
 
 export interface SemanticSyncTarget {
   chainId: number;
@@ -253,15 +254,9 @@ export class SemanticSyncRunner {
     }
     
     if (!url) {
-      // Fallback: try to get default subgraph URL for chain
-      // Common subgraph URLs for known chains (with API key in path)
-      const defaultSubgraphs: Record<number, string> = {
-        11155111: 'https://gateway.thegraph.com/api/00a452ad3cd1900273ea62c1bf283f93/subgraphs/id/6wQRC7geo9XYAhckfmfo8kbMRLeWU8KQd3XsJqFKmZLT', // Ethereum Sepolia
-        84532: 'https://gateway.thegraph.com/api/00a452ad3cd1900273ea62c1bf283f93/subgraphs/id/GjQEDgEKqoh5Yc8MUgxoQoRATEJdEiH7HbocfR1aFiHa', // Base Sepolia
-        80002: 'https://gateway.thegraph.com/api/00a452ad3cd1900273ea62c1bf283f93/subgraphs/id/2A1JB18r1mF2VNP4QBH4mmxd74kbHoM6xLXC8ABAKf7j', // Polygon Amoy
-      };
-      
-      url = defaultSubgraphs[chainId];
+      // Fallback: default subgraph URLs (centralized in search-service/subgraph-endpoints.json)
+      const defaults = getDefaultSubgraphEndpoints();
+      url = defaults[chainId];
       
       if (!url) {
         throw new Error(`No subgraph URL available for chain ${chainId}. Please provide subgraphUrl in target.`);

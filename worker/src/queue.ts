@@ -8,6 +8,7 @@ import { D1SemanticSyncStateStore } from './utils/d1-sync-state-store.js';
 import { SyncLockManager } from './utils/sync-lock.js';
 import { SyncLogger } from './utils/sync-logger.js';
 import { SyncEventLogger } from './utils/sync-event-logger.js';
+import { resolveSubgraphUrlForChain } from './utils/subgraph-config.js';
 
 /**
  * Queue consumer handler for processing chain sync operations
@@ -158,20 +159,22 @@ async function processChainSync(
       throw new Error(`Failed to initialize Pinecone for chain ${chainId}: ${errorMessage}`);
     }
 
+    // Resolve subgraph URL for this chain (message override > D1/env/defaults)
+    const resolvedSubgraphUrl =
+      message.subgraphUrl ?? (await resolveSubgraphUrlForChain(env.DB, env as unknown as Record<string, unknown>, chainId));
+
     // Initialize SDK (optional, mainly for subgraph URL resolution if needed)
     const sdk = new SDK({
       chainId,
       rpcUrl: env.RPC_URL,
-      ...(message.subgraphUrl ? { subgraphOverrides: { [chainId]: message.subgraphUrl } } : {}),
+      ...(resolvedSubgraphUrl ? { subgraphOverrides: { [chainId]: resolvedSubgraphUrl } } : {}),
     });
 
     // Create event logger for detailed event tracking
     const eventLogger = message.logId ? new SyncEventLogger(env.DB) : null;
 
     // Create sync runner for this chain
-    const targets = message.subgraphUrl
-      ? [{ chainId, subgraphUrl: message.subgraphUrl }]
-      : [{ chainId }];
+    const targets = resolvedSubgraphUrl ? [{ chainId, subgraphUrl: resolvedSubgraphUrl }] : [{ chainId }];
       
     const options: SemanticSyncRunnerOptions = {
       batchSize,
