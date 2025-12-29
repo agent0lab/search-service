@@ -4,6 +4,8 @@
  */
 import type { Context } from 'hono';
 import type { Env } from '../../types.js';
+import { createErrorResponse, ErrorCode } from '../../utils/errors.js';
+import { getRequestId } from '../../middleware/request-id.js';
 
 const SEARCH_REQUEST_SCHEMA = {
   $schema: 'http://json-schema.org/draft-07/schema#',
@@ -221,13 +223,14 @@ export async function schemasHandler(c: Context<{ Bindings: Env }>): Promise<Res
       });
 
     default:
+      // Use standard error envelope + requestId for consistent 404s
       return c.json(
-        {
-          error: `Schema not found for endpoint: ${endpoint}`,
-          code: 'NOT_FOUND',
-          status: 404,
-          timestamp: new Date().toISOString(),
-        },
+        createErrorResponse(
+          new Error(`Schema not found for endpoint: ${endpoint}`),
+          404,
+          ErrorCode.NOT_FOUND,
+          getRequestId(c as any)
+        ),
         404
       );
   }

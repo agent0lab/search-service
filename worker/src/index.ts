@@ -14,6 +14,7 @@ import { searchHandlerV1 } from './routes/v1/search.js';
 import { schemasHandler } from './routes/v1/schemas.js';
 import { validateSearchRequestV1 } from './middleware/validation-v1.js';
 import { requestIdMiddleware } from './middleware/request-id.js';
+import { getRequestId } from './middleware/request-id.js';
 // Import the scheduled handler implementation
 import { scheduled as scheduledHandlerImpl } from './scheduled.js';
 // Import the queue handler implementation
@@ -74,7 +75,10 @@ app.route('/api/v1', v1);
 
 // 404 handler
 app.notFound((c) => {
-  return c.json({ error: 'Not found' }, 404);
+  // Ensure requestId is present and consistent in both headers and body
+  const requestId = getRequestId(c as any);
+  c.header('X-Request-ID', requestId);
+  return c.json(createErrorResponse(new Error('Not found'), 404, ErrorCode.NOT_FOUND, requestId), 404);
 });
 
 // Export default handler that wraps Hono app
