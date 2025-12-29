@@ -480,7 +480,7 @@ search-service/
 Future enhancements planned for the service:
 
 ### Authentication Systems
-- **x402 (ERC-402) Support**: Payment-based authentication using ERC-402 tokens for API access
+- **x402 Support**: Payment-based authentication
 - **API Key Authentication**: Traditional API key-based authentication for programmatic access
 - **Additional Auth Methods**: Support for OAuth2, JWT, and other authentication mechanisms
 
