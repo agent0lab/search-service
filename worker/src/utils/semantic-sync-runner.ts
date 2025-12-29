@@ -1,14 +1,24 @@
 import type { SDK } from 'agent0-sdk';
 import type { SemanticAgentRecord } from './types.js';
-import type {
-  SemanticSyncState,
-  SemanticSyncStateStore,
-  ChainSyncState,
-} from './sync-state.js';
 import type { EmbeddingProvider, VectorStoreProvider } from './interfaces.js';
-import { normalizeSemanticSyncState, computeAgentHash } from './sync-state.js';
+import { computeAgentHash } from './sync-state.js';
 import { SemanticSearchManager } from './manager.js';
 import { getDefaultSubgraphEndpoints } from './subgraph-config.js';
+
+/**
+ * Batch-oriented sync state store interface (normalized hashes).
+ */
+export interface SemanticSyncStateStoreV2 {
+  getLastUpdatedAt(chainId: string): Promise<string>;
+  setLastUpdatedAt(chainId: string, lastUpdatedAt: string): Promise<void>;
+  getAgentHashes(chainId: string, agentIds: string[]): Promise<Record<string, string>>;
+  upsertAgentHashes(chainId: string, hashes: Record<string, string>, nowIso?: string): Promise<void>;
+  deleteAgentHashes(chainId: string, agentIds: string[]): Promise<void>;
+  migrateLegacyAgentHashesBlobToTable?(
+    chainId: string,
+    chunkSize?: number
+  ): Promise<{ migrated: boolean; count: number }>;
+}
 
 export interface SemanticSyncTarget {
   chainId: number;
@@ -17,7 +27,7 @@ export interface SemanticSyncTarget {
 
 export interface SemanticSyncRunnerOptions {
   batchSize?: number;
-  stateStore: SemanticSyncStateStore;
+  stateStore: SemanticSyncStateStoreV2;
   embeddingProvider: EmbeddingProvider;
   vectorStoreProvider: VectorStoreProvider;
   logger?: (event: string, extra?: Record<string, unknown>) => void;
@@ -103,18 +113,18 @@ export class SemanticSyncRunner {
     const { logger, batchSize = 50 } = this.options;
     
     logger?.('semantic-sync:chain-start', { chainId });
-    
-    // Load current state
-    const rawState = await this.options.stateStore.load();
-    const state = normalizeSemanticSyncState(rawState);
+
     const chainKey = String(chainId);
-    const chainState = state.chains[chainKey] || {
-      lastUpdatedAt: '0',
-      agentHashes: {},
-    };
-    
-    let lastUpdatedAt = chainState.lastUpdatedAt;
-    let processedAny = false;
+
+    // One-time backfill from legacy per-chain JSON blob (if present)
+    if (typeof this.options.stateStore.migrateLegacyAgentHashesBlobToTable === 'function') {
+      const { migrated, count } = await this.options.stateStore.migrateLegacyAgentHashesBlobToTable(chainKey);
+      if (migrated) {
+        logger?.('semantic-sync:legacy-hashes-migrated', { chainId, count });
+      }
+    }
+
+    let lastUpdatedAt = await this.options.stateStore.getLastUpdatedAt(chainKey);
     let hasMore = true;
     let totalIndexed = 0;
     let totalDeleted = 0;
@@ -128,9 +138,50 @@ export class SemanticSyncRunner {
         hasMore = false;
         break;
       }
-      
-      // Prepare agents for indexing/deletion
-      const { toIndex, toDelete, hashes, maxUpdatedAt } = this.prepareAgents(agents, chainState);
+
+      // Track max updatedAt in this page so we can advance cursor even if nothing changes.
+      let maxUpdatedAt = lastUpdatedAt;
+
+      // Partition agents (orphan deletes vs index candidates)
+      const toDelete: Array<{ chainId: number; agentId: string }> = [];
+      const deleteAgentIds: string[] = [];
+      const indexCandidates: Array<{ agentId: string; record: SemanticAgentRecord; hash: string }> = [];
+
+      for (const agent of agents) {
+        const updatedAt = agent.updatedAt || '0';
+        if (updatedAt > maxUpdatedAt) {
+          maxUpdatedAt = updatedAt;
+        }
+
+        const agentId = agent.id;
+        const agentChainId = Number(agent.chainId);
+
+        // Orphan: no registration file -> delete from vector store and remove hash
+        if (!agent.registrationFile) {
+          toDelete.push({ chainId: agentChainId, agentId });
+          deleteAgentIds.push(agentId);
+          continue;
+        }
+
+        const record = this.convertToSemanticAgentRecord(agent);
+        const hash = computeAgentHash(record);
+        indexCandidates.push({ agentId, record, hash });
+      }
+
+      // Fetch previous hashes only for this page's agent IDs
+      const candidateIds = indexCandidates.map(c => c.agentId);
+      const existingHashes = await this.options.stateStore.getAgentHashes(chainKey, candidateIds);
+
+      // Decide which agents actually changed
+      const toIndex: SemanticAgentRecord[] = [];
+      const upsertHashes: Record<string, string> = {};
+      for (const candidate of indexCandidates) {
+        if (existingHashes[candidate.agentId] === candidate.hash) {
+          continue;
+        }
+        toIndex.push(candidate.record);
+        upsertHashes[candidate.agentId] = candidate.hash;
+      }
       
       // Index new/changed agents
       if (toIndex.length > 0) {
@@ -147,24 +198,18 @@ export class SemanticSyncRunner {
         await this.searchManager.deleteAgentsBatch(toDelete);
         totalDeleted += toDelete.length;
       }
-      
-      // Update hashes after successful writes
-      chainState.agentHashes = chainState.agentHashes || {};
-      for (const { agentId, hash } of hashes) {
-        if (hash) {
-          chainState.agentHashes[agentId] = hash;
-        } else {
-          delete chainState.agentHashes[agentId];
-        }
+
+      // Persist hash updates/deletes after successful vector writes
+      if (Object.keys(upsertHashes).length > 0) {
+        await this.options.stateStore.upsertAgentHashes(chainKey, upsertHashes);
       }
-      
+      if (deleteAgentIds.length > 0) {
+        await this.options.stateStore.deleteAgentHashes(chainKey, deleteAgentIds);
+      }
+
+      // Persist cursor after successful processing of this page
       lastUpdatedAt = maxUpdatedAt;
-      chainState.lastUpdatedAt = lastUpdatedAt;
-      state.chains[chainKey] = chainState;
-      
-      // Save state after each batch
-      await this.options.stateStore.save(state);
-      processedAny = processedAny || toIndex.length > 0 || toDelete.length > 0;
+      await this.options.stateStore.setLastUpdatedAt(chainKey, lastUpdatedAt);
       
       logger?.('semantic-sync:batch-processed', {
         chainId,
@@ -172,65 +217,16 @@ export class SemanticSyncRunner {
         deleted: toDelete.length,
         lastUpdatedAt,
         agentIds: toIndex.map(r => r.agentId),
-        agentIdsDeleted: toDelete.map(item => item.agentId),
+        agentIdsDeleted: deleteAgentIds,
       });
     }
-    
-    if (!processedAny) {
-      logger?.('semantic-sync:no-op', { chainId, lastUpdatedAt });
-    } else {
-      logger?.('semantic-sync:chain-complete', {
-        chainId,
-        indexed: totalIndexed,
-        deleted: totalDeleted,
-        lastUpdatedAt,
-      });
-    }
-  }
-  
-  private prepareAgents(
-    agents: SubgraphAgent[],
-    chainState: ChainSyncState
-  ): {
-    toIndex: SemanticAgentRecord[];
-    toDelete: Array<{ chainId: number; agentId: string }>;
-    hashes: Array<{ agentId: string; hash?: string }>;
-    maxUpdatedAt: string;
-  } {
-    const toIndex: SemanticAgentRecord[] = [];
-    const toDelete: Array<{ chainId: number; agentId: string }> = [];
-    const hashes: Array<{ agentId: string; hash?: string }> = [];
-    let maxUpdatedAt = chainState.lastUpdatedAt;
-    
-    for (const agent of agents) {
-      const chainId = Number(agent.chainId);
-      const agentId = agent.id;
-      const updatedAt = agent.updatedAt || '0';
-      
-      if (updatedAt > maxUpdatedAt) {
-        maxUpdatedAt = updatedAt;
-      }
-      
-      // Handle orphaned agents (no registration file)
-      if (!agent.registrationFile) {
-        toDelete.push({ chainId, agentId });
-        hashes.push({ agentId });
-        continue;
-      }
-      
-      const record = this.convertToSemanticAgentRecord(agent);
-      const hash = computeAgentHash(record);
-      
-      // Only index if hash changed
-      if (chainState.agentHashes?.[agentId] === hash) {
-        continue;
-      }
-      
-      toIndex.push(record);
-      hashes.push({ agentId, hash });
-    }
-    
-    return { toIndex, toDelete, hashes, maxUpdatedAt };
+
+    logger?.('semantic-sync:chain-complete', {
+      chainId,
+      indexed: totalIndexed,
+      deleted: totalDeleted,
+      lastUpdatedAt,
+    });
   }
 
   private async querySubgraphAgents(
@@ -335,6 +331,13 @@ export class SemanticSyncRunner {
   private convertToSemanticAgentRecord(agent: SubgraphAgent): SemanticAgentRecord {
     const chainId = Number(agent.chainId);
     const reg = agent.registrationFile!;
+
+    const supportedTrusts = normalizeStringArray(reg.supportedTrusts);
+    const mcpTools = normalizeStringArray(reg.mcpTools);
+    const mcpPrompts = normalizeStringArray(reg.mcpPrompts);
+    const mcpResources = normalizeStringArray(reg.mcpResources);
+    const a2aSkills = normalizeStringArray(reg.a2aSkills);
+    const operators = normalizeStringArray(agent.operators);
     
     // Derive boolean fields from endpoint existence
     const hasMcpEndpoint = !!(reg.mcpEndpoint && reg.mcpEndpoint.trim() !== '');
@@ -343,11 +346,11 @@ export class SemanticSyncRunner {
     const metadata: Record<string, unknown> = {
       registrationId: reg.id ?? undefined,
       image: reg.image ?? undefined,
-      supportedTrusts: reg.supportedTrusts ?? undefined,
-      mcpTools: reg.mcpTools ?? undefined,
-      mcpPrompts: reg.mcpPrompts ?? undefined,
-      mcpResources: reg.mcpResources ?? undefined,
-      a2aSkills: reg.a2aSkills ?? undefined,
+      supportedTrusts: supportedTrusts ?? undefined,
+      mcpTools: mcpTools ?? undefined,
+      mcpPrompts: mcpPrompts ?? undefined,
+      mcpResources: mcpResources ?? undefined,
+      a2aSkills: a2aSkills ?? undefined,
       ens: reg.ens ?? undefined,
       did: reg.did ?? undefined,
       agentWallet: reg.agentWallet ?? undefined,
@@ -358,29 +361,46 @@ export class SemanticSyncRunner {
       a2aEndpoint: reg.a2aEndpoint ?? undefined,
       a2aVersion: reg.a2aVersion ?? undefined,
       owner: agent.owner ?? undefined,
-      operators: agent.operators ?? undefined,
+      operators: operators ?? undefined,
       createdAt: agent.createdAt ?? undefined,
       updatedAt: agent.updatedAt,
       // Derived boolean fields for native Pinecone filtering
       mcp: hasMcpEndpoint,
       a2a: hasA2aEndpoint,
     };
+
+    const capabilities = normalizeStringArray([
+      ...(mcpTools ?? []),
+      ...(mcpPrompts ?? []),
+      ...(a2aSkills ?? []),
+    ]);
     
     return {
       chainId,
       agentId: agent.id, // Format: "chainId:tokenId"
       name: reg.name ?? '',
       description: reg.description ?? '',
-      capabilities: [
-        ...(reg.mcpTools ?? []),
-        ...(reg.mcpPrompts ?? []),
-        ...(reg.a2aSkills ?? []),
-      ],
-      defaultInputModes: reg.mcpTools && reg.mcpTools.length > 0 ? ['mcp'] : ['text'],
+      capabilities: capabilities ?? [],
+      defaultInputModes: mcpTools && mcpTools.length > 0 ? ['mcp'] : ['text'],
       defaultOutputModes: ['json'],
-      tags: reg.supportedTrusts ?? [],
+      tags: supportedTrusts ?? [],
       metadata,
     };
   }
+}
+
+function normalizeStringArray(values?: Array<string | null> | null): string[] | undefined {
+  if (!values || values.length === 0) {
+    return undefined;
+  }
+  const cleaned = values
+    .filter((v): v is string => typeof v === 'string')
+    .map(v => v.trim())
+    .filter(v => v.length > 0);
+  if (cleaned.length === 0) {
+    return undefined;
+  }
+  // Treat as set: de-dupe + sort for deterministic behavior.
+  return Array.from(new Set(cleaned)).sort((a, b) => a.localeCompare(b));
 }
 

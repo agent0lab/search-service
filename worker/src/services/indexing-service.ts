@@ -1,7 +1,7 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { SDK } from 'agent0-sdk';
 import { SemanticSyncRunner, type SemanticSyncRunnerOptions } from '../utils/semantic-sync-runner.js';
-import { D1SemanticSyncStateStore } from '../utils/d1-sync-state-store.js';
+import { D1SemanticSyncStateStoreV2 } from '../utils/d1-sync-state-store-v2.js';
 import { getChains, initializeDefaults } from '../utils/config-store.js';
 import { VeniceEmbeddingProvider } from '../utils/providers/venice-embedding.js';
 import { PineconeVectorStore } from '../utils/providers/pinecone-vector-store.js';
@@ -61,7 +61,7 @@ export class IndexingService {
     let batchesProcessed = 0;
 
     // Create D1 sync state store
-    const stateStore = new D1SemanticSyncStateStore(this.config.db);
+    const stateStore = new D1SemanticSyncStateStoreV2(this.config.db);
 
     // Create our own provider instances to avoid AJV issues with SDK's Pinecone initialization
     const embeddingProvider = new VeniceEmbeddingProvider({

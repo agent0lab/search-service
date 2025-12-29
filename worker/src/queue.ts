@@ -4,7 +4,7 @@ import { SDK } from 'agent0-sdk';
 import { SemanticSyncRunner, type SemanticSyncRunnerOptions } from './utils/semantic-sync-runner.js';
 import { PineconeVectorStore } from './utils/providers/pinecone-vector-store.js';
 import { VeniceEmbeddingProvider } from './utils/providers/venice-embedding.js';
-import { D1SemanticSyncStateStore } from './utils/d1-sync-state-store.js';
+import { D1SemanticSyncStateStoreV2 } from './utils/d1-sync-state-store-v2.js';
 import { SyncLockManager } from './utils/sync-lock.js';
 import { SyncLogger } from './utils/sync-logger.js';
 import { SyncEventLogger } from './utils/sync-event-logger.js';
@@ -135,7 +135,7 @@ async function processChainSync(
 
   try {
     // Create sync state store
-    const stateStore = new D1SemanticSyncStateStore(env.DB);
+    const stateStore = new D1SemanticSyncStateStoreV2(env.DB);
 
     // Create embedding provider
     const embeddingProvider = new VeniceEmbeddingProvider({
