@@ -40,10 +40,3 @@ export interface SemanticSearchProviders {
   vectorStore: VectorStoreProvider;
 }
 
-export interface SemanticQueryRequest {
-  query: string;
-  topK?: number;
-  filters?: SemanticSearchFilters;
-  minScore?: number;
-}
-

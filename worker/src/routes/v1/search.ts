@@ -121,7 +121,7 @@ export async function searchHandlerV1(c: Context<{ Bindings: Env }>): Promise<Re
       errorMessage: errorResponse.error,
     });
 
-    return c.json(errorResponse, errorResponse.status);
+    return c.json(errorResponse, errorResponse.status as any);
   }
 }
 

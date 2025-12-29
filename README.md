@@ -269,10 +269,10 @@ Once indexed, test the search API:
 
 ```bash
 # Health check
-curl https://your-worker.workers.dev/v1/health
+curl https://your-worker.workers.dev/api/v1/health
 
 # Search query
-curl -X POST https://your-worker.workers.dev/v1/search \
+curl -X POST https://your-worker.workers.dev/api/v1/search \
   -H "Content-Type: application/json" \
   -d '{"query": "defi yield optimization", "limit": 5}'
 ```
@@ -321,10 +321,10 @@ The service is currently deployed at:
 You can test it with:
 ```bash
 # Health check
-curl https://agent0-semantic-search.dawid-pisarczyk.workers.dev/v1/health
+curl https://agent0-semantic-search.dawid-pisarczyk.workers.dev/api/v1/health
 
 # Search query
-curl -X POST https://agent0-semantic-search.dawid-pisarczyk.workers.dev/v1/search \
+curl -X POST https://agent0-semantic-search.dawid-pisarczyk.workers.dev/api/v1/search \
   -H "Content-Type: application/json" \
   -d '{"query": "defi yield optimization", "limit": 5}'
 ```
@@ -335,9 +335,9 @@ This service implements the [Universal Agent Semantic Search API Standard v1.0](
 
 ### Key Endpoints
 
-- **GET `/v1/capabilities`**: Discover provider capabilities and supported features
-- **GET `/v1/health`**: Check service health and availability
-- **POST `/v1/search`**: Perform semantic search query
+- **GET `/api/v1/capabilities`**: Discover provider capabilities and supported features
+- **GET `/api/v1/health`**: Check service health and availability
+- **POST `/api/v1/search`**: Perform semantic search query
 
 ### Example Search Request
 

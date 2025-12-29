@@ -295,7 +295,8 @@ export async function validateSearchRequestV1(c: Context<{ Bindings: Env }>, nex
     }
 
     // Store validated body in context
-    (c as any).set('validatedBody', request as StandardSearchRequest);
+    // (request is a Record<string, unknown>; we validated required fields above)
+    (c as any).set('validatedBody', request as unknown as StandardSearchRequest);
 
     await next();
   } catch (error) {

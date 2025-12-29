@@ -3,7 +3,7 @@ import type { D1Database } from '@cloudflare/workers-types';
 import { SyncLogger } from '../worker/src/utils/sync-logger.js';
 
 // Mock D1 database for sync logger
-class MockD1Database implements D1Database {
+class MockD1Database {
   private logs: Array<Record<string, unknown>> = [];
   private nextId = 1;
 
@@ -75,11 +75,11 @@ class MockD1Database implements D1Database {
 }
 
 describe('SyncLogger', () => {
-  let db: MockD1Database;
+  let db: D1Database;
   let logger: SyncLogger;
 
   beforeEach(() => {
-    db = new MockD1Database();
+    db = new MockD1Database() as unknown as D1Database;
     logger = new SyncLogger(db);
   });
 

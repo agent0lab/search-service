@@ -2,9 +2,6 @@ import { Hono } from 'hono';
 import type { Env } from './types.js';
 import type { ScheduledController, MessageBatch } from '@cloudflare/workers-types';
 import type { ChainSyncMessage } from './types.js';
-import { healthHandler } from './routes/health.js';
-import { searchHandler } from './routes/search.js';
-import { validateSearchRequest } from './middleware/validation.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { createErrorResponse, ErrorCode } from './utils/errors.js';
 // Import v1 routes
@@ -53,10 +50,6 @@ app.onError((err, c) => {
   const errorResponse = createErrorResponse(err, status);
   return c.json(errorResponse, status);
 });
-
-// Legacy routes (maintained for backward compatibility)
-app.get('/health', healthHandler);
-app.post('/api/search', rateLimitMiddleware, validateSearchRequest, searchHandler);
 
 // V1 Standard API routes
 const v1 = new Hono<{ Bindings: Env }>();

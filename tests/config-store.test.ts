@@ -3,7 +3,7 @@ import type { D1Database } from '@cloudflare/workers-types';
 import { getChains, setChains, getCronInterval, setCronInterval, initializeDefaults } from '../worker/src/utils/config-store.js';
 
 // Mock D1 database
-class MockD1Database implements D1Database {
+class MockD1Database {
   private data: Map<string, string> = new Map();
 
   prepare(query: string) {
@@ -29,15 +29,6 @@ class MockD1Database implements D1Database {
     };
   }
 
-  // Fix: prepare() should return an object that can be chained
-  async exec() {
-    return { success: true, meta: {} };
-  }
-
-  async exec() {
-    return { success: true, meta: {} };
-  }
-
   // Add helper to set data directly for testing
   setData(key: string, value: string) {
     this.data.set(key, value);
@@ -49,16 +40,18 @@ class MockD1Database implements D1Database {
 }
 
 describe('Config Store', () => {
-  let db: MockD1Database;
+  let db: D1Database;
+  let dbMock: MockD1Database;
 
   beforeEach(() => {
-    db = new MockD1Database();
+    dbMock = new MockD1Database();
+    db = dbMock as unknown as D1Database;
   });
 
   describe('getChains', () => {
     it('should return default chains when no config exists', async () => {
       const chains = await getChains(db);
-      expect(chains).toEqual([11155111, 84532]);
+      expect(chains).toEqual([11155111, 84532, 80002]);
     });
 
     it('should return configured chains from D1', async () => {
@@ -66,7 +59,7 @@ describe('Config Store', () => {
       // In a real scenario with actual D1, the query would return the stored value
       const chains = await getChains(db);
       // Should return defaults when no config exists
-      expect(chains).toEqual([11155111, 84532]);
+      expect(chains).toEqual([11155111, 84532, 80002]);
     });
   });
 
@@ -96,7 +89,7 @@ describe('Config Store', () => {
   describe('initializeDefaults', () => {
     it('should initialize defaults when config is empty', async () => {
       // Mock should return count 0, which triggers initialization
-      db.clearData();
+      dbMock.clearData();
       await initializeDefaults(db);
       // Should not throw - errors are caught and logged
       expect(true).toBe(true);

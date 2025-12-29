@@ -1,12 +1,7 @@
 import type { AgentId, ChainId } from './types.js';
-import type {
-  SemanticAgentRecord,
-  SemanticSearchResponse,
-  SemanticSearchResult,
-} from './types.js';
+import type { SemanticAgentRecord } from './types.js';
 import type {
   EmbeddingProvider,
-  SemanticQueryRequest,
   VectorStoreProvider,
   VectorUpsertItem,
 } from './interfaces.js';
@@ -152,49 +147,6 @@ export class SemanticSearchManager {
     for (const vectorId of vectorIds) {
       await this.vectorStore.delete(vectorId);
     }
-  }
-
-  async searchAgents(request: SemanticQueryRequest): Promise<SemanticSearchResponse> {
-    await this.ensureInitialized();
-    const { query, topK, filters, minScore } = request;
-    const embedding = await this.embeddingProvider.generateEmbedding(query);
-
-    const matches = await this.vectorStore.query({
-      vector: embedding,
-      topK,
-      filter: filters,
-    });
-
-    let filteredMatches = matches;
-    if (typeof minScore === 'number') {
-      filteredMatches = matches.filter(match => (match.score ?? 0) >= minScore);
-    }
-
-    const results: SemanticSearchResult[] = filteredMatches.map((match, index) => {
-      const { chainId, agentId } = SemanticSearchManager.parseVectorId(match.id);
-      const metadata = match.metadata || {};
-      const name = typeof metadata.name === 'string' ? metadata.name : undefined;
-      const description = typeof metadata.description === 'string' ? metadata.description : undefined;
-
-      return {
-        rank: index + 1,
-        vectorId: match.id,
-        agentId,
-        chainId,
-        name,
-        description,
-        score: match.score,
-        metadata,
-        matchReasons: match.matchReasons,
-      };
-    });
-
-    return {
-      query,
-      results,
-      total: results.length,
-      timestamp: new Date().toISOString(),
-    };
   }
 
   /**

@@ -46,10 +46,7 @@ The Worker exports a single `ExportedHandler` with three entry points:
 
 Defined in `worker/src/index.ts`:
 
-- **Legacy**
-  - `GET /health`
-  - `POST /api/search`
-- **Standard v1**
+- **Standard v1 (only)**
   - `GET /api/v1/capabilities`
   - `GET /api/v1/health`
   - `POST /api/v1/search`
@@ -116,21 +113,14 @@ Indexing enriches `metadata` with:
 
 ### Search API shapes
 
-There are two shapes:
-
-1) **Legacy**
-
-- Request: `{ query, topK?, filters?, minScore? }`
-- Response: `{ query, results, total, timestamp }`
-
-2) **Standard v1**
+The service supports only the **Standard v1** shape:
 
 `StandardSearchRequest` (`worker/src/utils/standard-types.ts`):
 
 - `query: string`
 - `limit?: number` (default 10)
 - `offset?: number` (offset pagination)
-- `cursor?: string` (cursor pagination; base64 JSON with offset)
+- `cursor?: string` (cursor pagination; SDK-compatible decimal string offset; legacy base64 cursors are accepted for backward compatibility)
 - `filters?: { equals?, in?, notIn?, exists?, notExists? }`
 - `minScore?: number`
 - `includeMetadata?: boolean` (default true)

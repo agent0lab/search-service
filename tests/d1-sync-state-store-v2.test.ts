@@ -4,7 +4,7 @@ import { D1SemanticSyncStateStoreV2 } from '../worker/src/utils/d1-sync-state-st
 
 type SyncStateRow = { last_updated_at: string; agent_hashes: string | null };
 
-class MockD1Database implements D1Database {
+class MockD1Database {
   syncState = new Map<string, SyncStateRow>(); // chain_id -> row
   agentHashes = new Map<string, { hash: string; updated_at: string }>(); // `${chain}:${agent}` -> row
 

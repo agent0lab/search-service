@@ -29,7 +29,7 @@ https://provider.example.com/api/v1/search
 
 ### 1. Capabilities Discovery
 
-**Endpoint:** `GET /v1/capabilities`
+**Endpoint:** `GET /api/v1/capabilities`
 
 **Purpose:** Discover provider capabilities, limits, and supported features.
 
@@ -136,7 +136,7 @@ https://provider.example.com/api/v1/search
 
 ### 2. Health Check
 
-**Endpoint:** `GET /v1/health`
+**Endpoint:** `GET /api/v1/health`
 
 **Purpose:** Check service health and availability.
 
@@ -164,7 +164,7 @@ https://provider.example.com/api/v1/search
 
 ### 3. Search
 
-**Endpoint:** `POST /v1/search`
+**Endpoint:** `POST /api/v1/search`
 
 **Purpose:** Perform semantic search query.
 
@@ -464,7 +464,7 @@ All filters correspond to fields in the `AgentRegistrationFile` GraphQL type:
 }
 ```
 
-**Note:** Providers may support additional filters beyond those listed. Check `/v1/capabilities` for the complete list of supported filters.
+**Note:** Providers may support additional filters beyond those listed. Check `/api/v1/capabilities` for the complete list of supported filters.
 
 ---
 
@@ -532,13 +532,13 @@ Providers may include additional metadata fields. Clients should handle unknown 
 
 Providers may optionally expose JSON schemas for validation:
 
-**Endpoint:** `GET /v1/schemas/{endpoint}`
+**Endpoint:** `GET /api/v1/schemas/{endpoint}`
 
 **Examples:**
 
-- `GET /v1/schemas/search` - Schema for search request/response
-- `GET /v1/schemas/capabilities` - Schema for capabilities response
-- `GET /v1/schemas/health` - Schema for health response
+- `GET /api/v1/schemas/search` - Schema for search request/response
+- `GET /api/v1/schemas/capabilities` - Schema for capabilities response
+- `GET /api/v1/schemas/health` - Schema for health response
 
 **Response:**
 
@@ -672,7 +672,7 @@ Response includes:
 }
 ```
 
-**Note:** Providers may support one or both methods. Check `/v1/capabilities` for supported pagination types. When both `cursor` and `offset` are provided, `cursor` takes precedence.
+**Note:** Providers may support one or both methods. Check `/api/v1/capabilities` for supported pagination types. When both `cursor` and `offset` are provided, `cursor` takes precedence.
 
 ---
 
@@ -764,9 +764,9 @@ Check provider documentation for authentication requirements.
 
 For a provider to be compliant with this standard:
 
-- [ ]  Implement `/v1/capabilities` endpoint
-- [ ]  Implement `/v1/health` endpoint
-- [ ]  Implement `/v1/search` endpoint
+- [ ]  Implement `/api/v1/capabilities` endpoint
+- [ ]  Implement `/api/v1/health` endpoint
+- [ ]  Implement `/api/v1/search` endpoint
 - [ ]  Support versioning in URL path
 - [ ]  Return standardized error responses
 - [ ]  Include rate limit headers in responses
@@ -836,13 +836,13 @@ curl -X POST https://provider.example.com/api/v1/search \
 ### Check Capabilities
 
 ```bash
-curl https://provider.example.com/v1/capabilities
+curl https://provider.example.com/api/v1/capabilities
 ```
 
 ### Health Check
 
 ```bash
-curl https://provider.example.com/v1/health
+curl https://provider.example.com/api/v1/health
 ```
 
 ### Get JSON Schema (Optional)
