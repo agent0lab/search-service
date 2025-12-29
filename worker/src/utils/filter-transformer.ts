@@ -1,11 +1,11 @@
 /**
- * Transform standard filter format to Pinecone-compatible format
+ * Transform v1 filter format to Pinecone-compatible format
  */
 import type { StandardFilters } from './standard-types.js';
 import type { SemanticSearchFilters } from './types.js';
 
 /**
- * Transform standard filter operators to Pinecone-compatible filters
+ * Transform v1 filter operators to Pinecone-compatible filters
  * Note: exists/notExists operators require post-filtering as Pinecone doesn't support them natively
  */
 export function transformStandardFiltersToPinecone(
@@ -85,8 +85,8 @@ export function transformStandardFiltersToPinecone(
 }
 
 /**
- * Map standard filter field names to metadata field names
- * This handles any field name differences between the API standard and internal storage
+ * Map v1 filter field names to metadata field names
+ * This handles any field name differences between the schema and internal storage
  */
 export function mapStandardFieldToMetadata(field: string): string {
   // Most fields map directly, but we can add mappings here if needed

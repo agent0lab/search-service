@@ -139,16 +139,16 @@ export default function ApiDocsPage() {
             </p>
             <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 mb-6">
               <p className="text-sm">
-                <strong>API Standard:</strong> This API implements the{' '}
-                <a
-                  href="https://www.notion.so/AG0-Semantic-Search-Standard-2bc47a22ae4680789ce4fc4a306bc9c8?source=copy_link"
+                <strong>API schema:</strong> This API follows the{' '}
+                  <a
+                  href="https://www.notion.so/AG0-Semantic-Search-Schema-2bc47a22ae4680789ce4fc4a306bc9c8?source=copy_link"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline font-medium"
                 >
-                  Universal Agent Semantic Search API Standard v1.0
+                  Agent Semantic Search API schema (v1)
                 </a>
-                {' '}for full specification details.
+                {' '}for full details.
               </p>
             </div>
           </div>
@@ -192,7 +192,7 @@ export default function ApiDocsPage() {
                   </div>
                   <div className="flex items-start gap-2">
                     <Badge variant="outline" className="font-mono">filters</Badge>
-                    <span className="text-muted-foreground">(optional) - Filter object using standard operators (see below)</span>
+                    <span className="text-muted-foreground">(optional) - Filter object using common operators (see below)</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <Badge variant="outline" className="font-mono">minScore</Badge>
@@ -220,7 +220,7 @@ export default function ApiDocsPage() {
               <div>
                 <h3 className="font-semibold mb-2">Filter Operators</h3>
                 <p className="text-sm text-muted-foreground mb-3">
-                  Filters use standard operators for flexible querying:
+                  Filters use common operators for flexible querying:
                 </p>
                 <div className="space-y-2 text-sm">
                   <div className="flex items-start gap-2">
@@ -307,7 +307,7 @@ export default function ApiDocsPage() {
                   </div>
                   <div className="flex items-start gap-2">
                     <Badge variant="outline" className="font-mono">did</Badge>
-                    <span className="text-muted-foreground">- DID (Decentralized Identifier) - W3C standard for self-sovereign identity (use equals operator for exact match)</span>
+                    <span className="text-muted-foreground">- DID (Decentralized Identifier) - W3C specification for self-sovereign identity (use equals operator for exact match)</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <Badge variant="outline" className="font-mono">createdAt, updatedAt</Badge>
@@ -392,7 +392,7 @@ export default function ApiDocsPage() {
                 </div>
                 <div className="flex items-start gap-2">
                   <Badge variant="outline" className="font-mono">metadataFiltering</Badge>
-                  <span className="text-muted-foreground">- Comprehensive metadata filtering using standard operators (equals, in, notIn, exists, notExists) on all indexed fields.</span>
+                  <span className="text-muted-foreground">- Comprehensive metadata filtering using common operators (equals, in, notIn, exists, notExists) on all indexed fields.</span>
                 </div>
               </div>
             </CardContent>
@@ -416,7 +416,7 @@ export default function ApiDocsPage() {
                 <h3 className="font-semibold mb-3">Complex Search with Filters</h3>
                 <CodeBlock code={COMPLEX_EXAMPLE} title="Complex search with filter operators" />
                 <p className="text-sm text-muted-foreground mt-2">
-                  This example shows how to use standard filter operators (equals, in) to search for DeFi agents on Ethereum Sepolia with a minimum score threshold.
+                  This example shows how to use common filter operators (equals, in) to search for DeFi agents on Ethereum Sepolia with a minimum score threshold.
                 </p>
               </div>
 
@@ -464,7 +464,7 @@ export default function ApiDocsPage() {
                 <h3 className="font-semibold mb-3">New Filter Fields (MCP, A2A, Owner, Operators)</h3>
                 <CodeBlock code={NEW_FILTERS_EXAMPLE} title="Using new filter fields" />
                 <p className="text-sm text-muted-foreground mt-2">
-                  Filter by MCP/A2A endpoint support (boolean fields), owner address, or operator addresses using standard filter operators.
+                  Filter by MCP/A2A endpoint support (boolean fields), owner address, or operator addresses using common filter operators.
                 </p>
               </div>
             </CardContent>

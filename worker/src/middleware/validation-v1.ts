@@ -1,5 +1,5 @@
 /**
- * Validation middleware for v1 standard API endpoints
+ * Validation middleware for v1 API endpoints
  */
 import type { Context, Next } from 'hono';
 import type { Env } from '../types.js';
@@ -64,7 +64,7 @@ function parseCursorOffset(cursor: string): number | null {
 }
 
 /**
- * Validate standard search request
+ * Validate v1 search request
  */
 export async function validateSearchRequestV1(c: Context<{ Bindings: Env }>, next: Next) {
   const requestId = getRequestId(c);

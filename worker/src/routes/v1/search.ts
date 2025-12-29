@@ -1,6 +1,6 @@
 /**
- * Standard search endpoint (v1 API)
- * Implements the Universal Agent Semantic Search API Standard v1.0
+ * v1 search endpoint
+ * Implements the service's v1 search schema
  */
 import type { Context } from 'hono';
 import type { Env } from '../../types.js';

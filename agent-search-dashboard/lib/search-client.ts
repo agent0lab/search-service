@@ -4,7 +4,7 @@ const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || 'https://agent0-semanti
 
 /**
  * Client to call the worker v1 search endpoint
- * Implements Universal Agent Semantic Search API Standard v1.0
+ * Implements the service's v1 search schema
  */
 export async function searchAgents(request: StandardSearchRequest): Promise<StandardSearchResponse> {
   const response = await fetch(`${WORKER_URL}/api/v1/search`, {

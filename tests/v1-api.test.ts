@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 
 /**
- * Integration tests for v1 standard API endpoints
+ * Integration tests for v1 API endpoints
  * These test the API endpoints against a running dev server
  * Make sure to run `npm run dev` in another terminal before running these tests
  */
@@ -18,7 +18,7 @@ async function asJson(res: Response): Promise<any> {
 const RUN_V1_API_INTEGRATION = process.env.RUN_V1_API_INTEGRATION === '1';
 const maybeDescribe = RUN_V1_API_INTEGRATION ? describe : describe.skip;
 
-maybeDescribe('V1 Standard API', () => {
+maybeDescribe('V1 API', () => {
   describe('GET /api/v1/capabilities', () => {
     it('should return capabilities with correct structure', async () => {
       const res = await fetch(`${V1_BASE}/capabilities`);
@@ -82,7 +82,7 @@ maybeDescribe('V1 Standard API', () => {
   });
 
   describe('GET /api/v1/health', () => {
-    it('should return health status with standard format', async () => {
+    it('should return health status with expected format', async () => {
       const res = await fetch(`${V1_BASE}/health`);
       expect(res.status).toBeLessThanOrEqual(503); // Can be 200 or 503
 
@@ -161,7 +161,7 @@ maybeDescribe('V1 Standard API', () => {
       }
     });
 
-    it('should return standard response format', async () => {
+    it('should return expected response format', async () => {
       const res = await fetch(`${V1_BASE}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -574,7 +574,7 @@ maybeDescribe('V1 Standard API', () => {
   });
 
   describe('Error Handling', () => {
-    it('should return standard error format', async () => {
+    it('should return expected error format', async () => {
       const res = await fetch(`${V1_BASE}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

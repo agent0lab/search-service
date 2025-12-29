@@ -1,10 +1,10 @@
-# AG0 Semantic Search Standard
+# AG0 Semantic Search Schema
 
-# Universal Agent Semantic Search API Standard v1.0
+# Agent Semantic Search API Schema (v1)
 
 ## Overview
 
-This standard defines a universal interface for semantic search APIs, enabling hot-swappable providers. Any provider implementing this standard can be used interchangeably with the same client code.
+This document defines the v1 search service schema (endpoints, request/response shapes, pagination, and error format) for semantic search over ERC-8004 agents.
 
 **JSON Schema Support:** All endpoints include JSON Schema definitions for request and response validation. Providers should validate requests against the schema and may optionally expose schemas via `/v1/schemas/{endpoint}` endpoints.
 
@@ -336,9 +336,9 @@ Content-Type: application/json
 
 ## Filter Schema
 
-Filters support both standard operators and domain-specific filters based on the `AgentRegistrationFile` schema.
+Filters support both common operators and domain-specific filters based on the `AgentRegistrationFile` schema.
 
-### Standard Operators
+### Common operators
 
 **equals:** Exact match for a single value
 
@@ -470,7 +470,7 @@ All filters correspond to fields in the `AgentRegistrationFile` GraphQL type:
 
 ## Metadata Schema
 
-Standard metadata fields for search results, matching `AgentRegistrationFile`:
+Common metadata fields for search results, matching `AgentRegistrationFile`:
 
 ```json
 {
@@ -572,7 +572,7 @@ Providers may optionally expose JSON schemas for validation:
 
 ## Error Response
 
-All errors follow a standard format:
+All errors follow a consistent format:
 
 ```json
 {
@@ -617,7 +617,7 @@ When rate limit is exceeded:
 
 - Status: `429 Too Many Requests`
 - Header: `Retry-After: 60` (seconds until retry)
-- Body: Standard error response with `RATE_LIMIT_EXCEEDED` code
+- Body: error response with `RATE_LIMIT_EXCEEDED` code
 
 ---
 
@@ -739,7 +739,7 @@ Access-Control-Allow-Headers: Content-Type, X-API-Version, X-Request-ID
 
 ### Security Headers
 
-Providers should include standard security headers:
+Providers should include common security headers:
 
 ```
 X-Content-Type-Options: nosniff
@@ -749,7 +749,7 @@ X-XSS-Protection: 1; mode=block
 
 ### Authentication
 
-Authentication is provider-specific and not part of this standard. Providers may require:
+Authentication is provider-specific and not part of this schema. Providers may require:
 
 - API keys in headers: `Authorization: Bearer <token>`
 - API keys in query: `?apiKey=<key>`
@@ -762,7 +762,7 @@ Check provider documentation for authentication requirements.
 
 ## Implementation Checklist
 
-For a provider to be compliant with this standard:
+For an implementation to be compliant with this schema:
 
 - [ ]  Implement `/api/v1/capabilities` endpoint
 - [ ]  Implement `/api/v1/health` endpoint
@@ -773,7 +773,7 @@ For a provider to be compliant with this standard:
 - [ ]  Support request ID tracing
 - [ ]  Support at least one pagination method
 - [ ]  Include provider metadata in responses
-- [ ]  Support standard filter operators
+- [ ]  Support the common filter operators
 - [ ]  Support AgentRegistrationFile filter fields
 - [ ]  Return standardized metadata schema
 - [ ]  Include security headers
@@ -855,11 +855,11 @@ curl https://provider.example.com/api/v1/schemas/search
 
 ## Version History
 
-- **v1.0.0** (2025-12-01) - Initial standard specification
+- **v1.0.0** (2025-12-01) - Initial schema specification
 
 ---
 
 ## License
 
-This standard is provided as-is for interoperability purposes. Implementations may extend the standard with provider-specific features while maintaining backward compatibility.
+This schema is provided as-is for interoperability purposes. Implementations may extend it with provider-specific features while maintaining backward compatibility.
 

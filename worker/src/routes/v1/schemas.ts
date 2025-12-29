@@ -223,7 +223,7 @@ export async function schemasHandler(c: Context<{ Bindings: Env }>): Promise<Res
       });
 
     default:
-      // Use standard error envelope + requestId for consistent 404s
+      // Use consistent error envelope + requestId for 404s
       return c.json(
         createErrorResponse(
           new Error(`Schema not found for endpoint: ${endpoint}`),

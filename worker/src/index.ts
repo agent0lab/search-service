@@ -51,7 +51,7 @@ app.onError((err, c) => {
   return c.json(errorResponse, status);
 });
 
-// V1 Standard API routes
+// v1 API schema routes
 const v1 = new Hono<{ Bindings: Env }>();
 
 // Request ID middleware for all v1 routes

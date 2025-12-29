@@ -136,7 +136,7 @@ export interface Session {
   expiresAt: number;
 }
 
-// v1 Standard API Types (Universal Agent Semantic Search API Standard v1.0)
+// v1 API schema types (search service)
 // Filter Operators
 export interface StandardFilters {
   equals?: Record<string, unknown>;
@@ -182,7 +182,7 @@ export interface StandardSearchResult {
   matchReasons?: string[];
 }
 
-// Standard Metadata (AgentRegistrationFile fields)
+// Metadata fields (AgentRegistrationFile fields)
 export interface StandardMetadata {
   id?: string;
   cid?: string;

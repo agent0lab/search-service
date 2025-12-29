@@ -46,7 +46,7 @@ The Worker exports a single `ExportedHandler` with three entry points:
 
 Defined in `worker/src/index.ts`:
 
-- **Standard v1 (only)**
+- **v1 schema (only)**
   - `GET /api/v1/capabilities`
   - `GET /api/v1/health`
   - `POST /api/v1/search`
@@ -56,9 +56,9 @@ Defined in `worker/src/index.ts`:
 
 - **Security headers**: `X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`
 - **CORS**: allows `GET, POST, OPTIONS` from `*`
-- **Error handler**: standard error response object
+- **Error handler**: consistent error response object
 
-### Standard v1 middleware stack
+### v1 middleware stack
 
 For all `/api/v1/*` routes:
 
@@ -113,9 +113,9 @@ Indexing enriches `metadata` with:
 
 ### Search API shapes
 
-The service supports only the **Standard v1** shape:
+The service supports only the **v1** schema:
 
-`StandardSearchRequest` (`worker/src/utils/standard-types.ts`):
+The request shape is documented in the v1 schema types (see `worker/src/utils/*types*`).
 
 - `query: string`
 - `limit?: number` (default 10)
@@ -215,7 +215,7 @@ Shared with `agent-search-dashboard/` admin SIWE authentication:
 
 ## Main flows (end-to-end)
 
-## Search flow (standard v1)
+## Search flow (v1)
 
 ### Overview
 
@@ -242,7 +242,7 @@ This is why the validator enforces a maximum offset that depends on `limit`.
 
 ### Filter translation
 
-Standard v1 filters are converted:
+v1 filters are converted:
 
 - `equals`: direct equality on Pinecone metadata fields
 - `in`: `{$in: [...]}` on Pinecone metadata fields

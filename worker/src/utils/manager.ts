@@ -150,8 +150,8 @@ export class SemanticSearchManager {
   }
 
   /**
-   * Search agents using the standard v1 API format
-   * Supports standard filter operators, pagination, and metadata filtering
+   * Search agents using the v1 schema format
+   * Supports filter operators, pagination, and metadata filtering
    */
   async searchAgentsV1(
     request: StandardSearchRequest,
@@ -192,7 +192,7 @@ export class SemanticSearchManager {
       }
     }
 
-    // Transform standard filters to Pinecone format
+    // Transform v1 filters to Pinecone format
     let pineconeFilters;
     let postFilter: ((metadata: Record<string, unknown>) => boolean) | undefined;
     
@@ -318,7 +318,7 @@ export class SemanticSearchManager {
       const name = typeof metadata.name === 'string' ? metadata.name : '';
       const description = typeof metadata.description === 'string' ? metadata.description : '';
 
-      // Build standard metadata (only if includeMetadata is true)
+      // Build metadata (only if includeMetadata is true)
       let standardMetadata: StandardMetadata | undefined;
       if (includeMetadata) {
         standardMetadata = {
