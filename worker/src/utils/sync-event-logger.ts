@@ -3,7 +3,7 @@ import type { D1Database } from '@cloudflare/workers-types';
 export interface SyncLogEvent {
   syncLogId: number;
   chainId: number;
-  eventType: 'batch-processed' | 'no-op' | 'error';
+  eventType: 'batch-processed' | 'no-op' | 'error' | 'chain-complete';
   timestamp: string;
   agentsIndexed: number;
   agentsDeleted: number;
@@ -75,7 +75,7 @@ export class SyncEventLogger {
     return result.results.map((row) => ({
       syncLogId: row.sync_log_id,
       chainId: row.chain_id,
-      eventType: row.event_type as 'batch-processed' | 'no-op' | 'error',
+      eventType: row.event_type as 'batch-processed' | 'no-op' | 'error' | 'chain-complete',
       timestamp: row.timestamp,
       agentsIndexed: row.agents_indexed,
       agentsDeleted: row.agents_deleted,
@@ -115,7 +115,7 @@ export class SyncEventLogger {
     return result.results.map((row) => ({
       syncLogId: row.sync_log_id,
       chainId: row.chain_id,
-      eventType: row.event_type as 'batch-processed' | 'no-op' | 'error',
+      eventType: row.event_type as 'batch-processed' | 'no-op' | 'error' | 'chain-complete',
       timestamp: row.timestamp,
       agentsIndexed: row.agents_indexed,
       agentsDeleted: row.agents_deleted,

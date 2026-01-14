@@ -1,6 +1,6 @@
 # Agent0 Semantic Search Service
 
-Standalone semantic search service for ERC-8004 agents using Cloudflare Workers, Venice AI embeddings, and Pinecone vector storage. This service implements the [Universal Agent Semantic Search API Standard v1.0](./docs/AG0_SEMANTIC_SEARCH_STANDARD.md), enabling hot-swappable providers and standardized client interfaces.
+Standalone semantic search service for ERC-8004 agents using Cloudflare Workers, Venice AI embeddings, and Pinecone vector storage. This service exposes a **v1 search service schema** (request/response shapes and error format) that clients can integrate with.
 
 The service also includes a [public-facing dashboard](./agent-search-dashboard/README.md) for searching and exploring agents, with an admin section for monitoring and managing the service.
 
@@ -13,7 +13,7 @@ The service also includes a [public-facing dashboard](./agent-search-dashboard/R
 - **Queue-Based Processing**: Cloudflare Queues for reliable indexing operations
 - **State Management**: D1 database for sync state and configuration
 - **Serverless**: Deployed on Cloudflare Workers for global edge deployment
-- **Standard API**: Implements Universal Agent Semantic Search API Standard v1.0
+- **Schema-first API**: Exposes a v1 search service schema for consistent client integration
 - **Open Source**: MIT licensed, self-hostable
 
 ## Architecture
@@ -269,10 +269,10 @@ Once indexed, test the search API:
 
 ```bash
 # Health check
-curl https://your-worker.workers.dev/v1/health
+curl https://your-worker.workers.dev/api/v1/health
 
 # Search query
-curl -X POST https://your-worker.workers.dev/v1/search \
+curl -X POST https://your-worker.workers.dev/api/v1/search \
   -H "Content-Type: application/json" \
   -d '{"query": "defi yield optimization", "limit": 5}'
 ```
@@ -321,23 +321,23 @@ The service is currently deployed at:
 You can test it with:
 ```bash
 # Health check
-curl https://agent0-semantic-search.dawid-pisarczyk.workers.dev/v1/health
+curl https://agent0-semantic-search.dawid-pisarczyk.workers.dev/api/v1/health
 
 # Search query
-curl -X POST https://agent0-semantic-search.dawid-pisarczyk.workers.dev/v1/search \
+curl -X POST https://agent0-semantic-search.dawid-pisarczyk.workers.dev/api/v1/search \
   -H "Content-Type: application/json" \
   -d '{"query": "defi yield optimization", "limit": 5}'
 ```
 
 ## API Documentation
 
-This service implements the [Universal Agent Semantic Search API Standard v1.0](./docs/AG0_SEMANTIC_SEARCH_STANDARD.md). For complete API documentation, see the standard specification.
+This service documents its **v1 search service schema** in [`docs/AG0_SEMANTIC_SEARCH_STANDARD.md`](./docs/AG0_SEMANTIC_SEARCH_STANDARD.md).
 
 ### Key Endpoints
 
-- **GET `/v1/capabilities`**: Discover provider capabilities and supported features
-- **GET `/v1/health`**: Check service health and availability
-- **POST `/v1/search`**: Perform semantic search query
+- **GET `/api/v1/capabilities`**: Discover provider capabilities and supported features
+- **GET `/api/v1/health`**: Check service health and availability
+- **POST `/api/v1/search`**: Perform semantic search query
 
 ### Example Search Request
 
@@ -361,7 +361,7 @@ This service implements the [Universal Agent Semantic Search API Standard v1.0](
 }
 ```
 
-See the [standard specification](./docs/AG0_SEMANTIC_SEARCH_STANDARD.md) for complete API documentation, including all filter operators, metadata fields, pagination, and error handling.
+See the [schema documentation](./docs/AG0_SEMANTIC_SEARCH_STANDARD.md) for complete API documentation, including filter operators, metadata fields, pagination, and error handling.
 
 ## Dashboard
 
@@ -430,7 +430,7 @@ The tests verify:
 ```
 search-service/
 ├── docs/                        # Documentation
-│   └── AG0_SEMANTIC_SEARCH_STANDARD.md  # API Standard v1.0
+│   └── AG0_SEMANTIC_SEARCH_STANDARD.md  # v1 schema documentation
 ├── worker/                      # Cloudflare Workers code
 │   └── src/
 │       ├── routes/              # API route handlers
@@ -480,7 +480,7 @@ search-service/
 Future enhancements planned for the service:
 
 ### Authentication Systems
-- **x402 (ERC-402) Support**: Payment-based authentication using ERC-402 tokens for API access
+- **x402 Support**: Payment-based authentication
 - **API Key Authentication**: Traditional API key-based authentication for programmatic access
 - **Additional Auth Methods**: Support for OAuth2, JWT, and other authentication mechanisms
 
@@ -489,7 +489,7 @@ Future enhancements planned for the service:
 - **Additional Vector Databases**: Support for Weaviate, Qdrant, Milvus, and other vector databases beyond Pinecone
 - **Provider Hot-Swapping**: Runtime configuration to switch between providers without code changes
 
-These enhancements will maintain backward compatibility with the existing API standard while providing more flexibility and options for deployment.
+These enhancements will maintain backward compatibility with the existing API schema while providing more flexibility and options for deployment.
 
 ## License
 

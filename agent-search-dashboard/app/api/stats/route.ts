@@ -1,11 +1,5 @@
 import { NextResponse } from 'next/server';
-
-// Default subgraph URLs (matching agent0-sdk)
-const DEFAULT_SUBGRAPH_URLS: Record<number, string> = {
-  11155111: 'https://gateway.thegraph.com/api/00a452ad3cd1900273ea62c1bf283f93/subgraphs/id/6wQRC7geo9XYAhckfmfo8kbMRLeWU8KQd3XsJqFKmZLT', // Ethereum Sepolia
-  84532: 'https://gateway.thegraph.com/api/00a452ad3cd1900273ea62c1bf283f93/subgraphs/id/GjQEDgEKqoh5Yc8MUgxoQoRATEJdEiH7HbocfR1aFiHa', // Base Sepolia
-  80002: 'https://gateway.thegraph.com/api/00a452ad3cd1900273ea62c1bf283f93/subgraphs/id/2A1JB18r1mF2VNP4QBH4mmxd74kbHoM6xLXC8ABAKf7j', // Polygon Amoy
-};
+import { getSubgraphEndpoints } from '../../../lib/subgraph-endpoints';
 
 interface SubgraphAgent {
   id: string;
@@ -84,7 +78,7 @@ export async function GET() {
     const day7dAgo = now - (7 * 24 * 60 * 60);
 
     // Query all chains in parallel
-    const chainQueries = Object.entries(DEFAULT_SUBGRAPH_URLS).map(async ([chainIdStr, subgraphUrl]) => {
+    const chainQueries = Object.entries(getSubgraphEndpoints()).map(async ([chainIdStr, subgraphUrl]) => {
       const chainId = parseInt(chainIdStr, 10);
       
       // First, try to get total count using pagination

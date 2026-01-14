@@ -4,10 +4,11 @@ import { SDK } from 'agent0-sdk';
 import { SemanticSyncRunner, type SemanticSyncRunnerOptions } from './utils/semantic-sync-runner.js';
 import { PineconeVectorStore } from './utils/providers/pinecone-vector-store.js';
 import { VeniceEmbeddingProvider } from './utils/providers/venice-embedding.js';
-import { D1SemanticSyncStateStore } from './utils/d1-sync-state-store.js';
+import { D1SemanticSyncStateStoreV2 } from './utils/d1-sync-state-store-v2.js';
 import { SyncLockManager } from './utils/sync-lock.js';
 import { SyncLogger } from './utils/sync-logger.js';
 import { SyncEventLogger } from './utils/sync-event-logger.js';
+import { resolveSubgraphUrlForChain } from './utils/subgraph-config.js';
 
 /**
  * Queue consumer handler for processing chain sync operations
@@ -134,7 +135,7 @@ async function processChainSync(
 
   try {
     // Create sync state store
-    const stateStore = new D1SemanticSyncStateStore(env.DB);
+    const stateStore = new D1SemanticSyncStateStoreV2(env.DB);
 
     // Create embedding provider
     const embeddingProvider = new VeniceEmbeddingProvider({
@@ -158,20 +159,22 @@ async function processChainSync(
       throw new Error(`Failed to initialize Pinecone for chain ${chainId}: ${errorMessage}`);
     }
 
+    // Resolve subgraph URL for this chain (message override > D1/env/defaults)
+    const resolvedSubgraphUrl =
+      message.subgraphUrl ?? (await resolveSubgraphUrlForChain(env.DB, env as unknown as Record<string, unknown>, chainId));
+
     // Initialize SDK (optional, mainly for subgraph URL resolution if needed)
     const sdk = new SDK({
       chainId,
       rpcUrl: env.RPC_URL,
-      ...(message.subgraphUrl ? { subgraphOverrides: { [chainId]: message.subgraphUrl } } : {}),
+      ...(resolvedSubgraphUrl ? { subgraphOverrides: { [chainId]: resolvedSubgraphUrl } } : {}),
     });
 
     // Create event logger for detailed event tracking
     const eventLogger = message.logId ? new SyncEventLogger(env.DB) : null;
 
     // Create sync runner for this chain
-    const targets = message.subgraphUrl
-      ? [{ chainId, subgraphUrl: message.subgraphUrl }]
-      : [{ chainId }];
+    const targets = resolvedSubgraphUrl ? [{ chainId, subgraphUrl: resolvedSubgraphUrl }] : [{ chainId }];
       
     const options: SemanticSyncRunnerOptions = {
       batchSize,
@@ -215,6 +218,22 @@ async function processChainSync(
           }
           if (typeof extra.deleted === 'number') {
             agentsDeleted += extra.deleted;
+          }
+
+          // Log chain completion event if we have a logId (fire-and-forget, don't block)
+          if (eventLogger && message.logId) {
+            eventLogger.logEvent({
+              syncLogId: message.logId,
+              chainId,
+              eventType: 'chain-complete',
+              timestamp: new Date().toISOString(),
+              agentsIndexed: typeof extra.indexed === 'number' ? extra.indexed : 0,
+              agentsDeleted: typeof extra.deleted === 'number' ? extra.deleted : 0,
+              lastUpdatedAt: typeof extra.lastUpdatedAt === 'string' ? extra.lastUpdatedAt : undefined,
+            }).catch((error) => {
+              console.error(`[queue] Failed to log chain completion event:`, error);
+              // Don't throw - event logging failure shouldn't break the sync
+            });
           }
         }
       },
@@ -309,13 +328,13 @@ async function processChainSync(
               .run();
           }
 
-          // Check if all chains have completed by counting distinct chains in events
+          // Check if all chains have completed by counting distinct chains with completion events
           // Only check if this chain completed successfully (no error)
           if (!syncError) {
             const completedChainsResult = await env.DB.prepare(
-              'SELECT COUNT(DISTINCT chain_id) as completed_count FROM sync_log_events WHERE sync_log_id = ? AND event_type != ?'
+              'SELECT COUNT(DISTINCT chain_id) as completed_count FROM sync_log_events WHERE sync_log_id = ? AND event_type = ?'
             )
-              .bind(message.logId, 'error')
+              .bind(message.logId, 'chain-complete')
               .first<{ completed_count: number }>();
 
             const completedChains = completedChainsResult?.completed_count || 0;

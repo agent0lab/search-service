@@ -1,20 +1,30 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 
 /**
- * Integration tests for v1 standard API endpoints
+ * Integration tests for v1 API endpoints
  * These test the API endpoints against a running dev server
  * Make sure to run `npm run dev` in another terminal before running these tests
  */
 const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:8787';
 const V1_BASE = `${BASE_URL}/api/v1`;
 
-describe('V1 Standard API', () => {
+async function asJson(res: Response): Promise<any> {
+  return (await res.json()) as any;
+}
+
+// These are integration tests that require a running dev server.
+// Enable by running:
+//   RUN_V1_API_INTEGRATION=1 npm test
+const RUN_V1_API_INTEGRATION = process.env.RUN_V1_API_INTEGRATION === '1';
+const maybeDescribe = RUN_V1_API_INTEGRATION ? describe : describe.skip;
+
+maybeDescribe('V1 API', () => {
   describe('GET /api/v1/capabilities', () => {
     it('should return capabilities with correct structure', async () => {
       const res = await fetch(`${V1_BASE}/capabilities`);
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = await asJson(res);
       expect(data).toHaveProperty('version');
       expect(data).toHaveProperty('limits');
       expect(data).toHaveProperty('supportedFilters');
@@ -42,7 +52,7 @@ describe('V1 Standard API', () => {
 
     it('should include all required filter fields', async () => {
       const res = await fetch(`${V1_BASE}/capabilities`);
-      const data = await res.json();
+      const data = await asJson(res);
 
       const requiredFilters = [
         'id',
@@ -62,7 +72,7 @@ describe('V1 Standard API', () => {
 
     it('should include all required operators', async () => {
       const res = await fetch(`${V1_BASE}/capabilities`);
-      const data = await res.json();
+      const data = await asJson(res);
 
       const requiredOperators = ['equals', 'in', 'notIn', 'exists', 'notExists'];
       for (const op of requiredOperators) {
@@ -72,11 +82,11 @@ describe('V1 Standard API', () => {
   });
 
   describe('GET /api/v1/health', () => {
-    it('should return health status with standard format', async () => {
+    it('should return health status with expected format', async () => {
       const res = await fetch(`${V1_BASE}/health`);
       expect(res.status).toBeLessThanOrEqual(503); // Can be 200 or 503
 
-      const data = await res.json();
+      const data = await asJson(res);
       expect(data).toHaveProperty('status');
       expect(data).toHaveProperty('timestamp');
       expect(data).toHaveProperty('version');
@@ -93,7 +103,7 @@ describe('V1 Standard API', () => {
       // This test would require mocking service failures
       // For now, we just verify the structure supports it
       const res = await fetch(`${V1_BASE}/health`);
-      const data = await res.json();
+      const data = await asJson(res);
 
       if (data.status === 'degraded' || data.status === 'down') {
         expect(res.status).toBe(503);
@@ -110,7 +120,7 @@ describe('V1 Standard API', () => {
       });
 
       expect(res.status).toBe(400);
-      const data = await res.json();
+      const data = await asJson(res);
       expect(data).toHaveProperty('error');
       expect(data).toHaveProperty('code');
       expect(data.code).toBe('VALIDATION_ERROR');
@@ -140,7 +150,7 @@ describe('V1 Standard API', () => {
       expect(res.status).not.toBe(400);
 
       if (res.status === 200) {
-        const data = await res.json();
+        const data = await asJson(res);
         expect(data).toHaveProperty('query');
         expect(data).toHaveProperty('results');
         expect(data).toHaveProperty('total');
@@ -151,7 +161,7 @@ describe('V1 Standard API', () => {
       }
     });
 
-    it('should return standard response format', async () => {
+    it('should return expected response format', async () => {
       const res = await fetch(`${V1_BASE}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -162,7 +172,7 @@ describe('V1 Standard API', () => {
       });
 
       if (res.status === 200) {
-        const data = await res.json();
+        const data = await asJson(res);
 
         // Validate response structure
         expect(data).toHaveProperty('query');
@@ -290,7 +300,7 @@ describe('V1 Standard API', () => {
       });
 
       if (res.status === 200) {
-        const data = await res.json();
+        const data = await asJson(res);
         expect(data).toHaveProperty('pagination');
         if (data.pagination) {
           expect(data.pagination).toHaveProperty('hasMore');
@@ -307,18 +317,34 @@ describe('V1 Standard API', () => {
         body: JSON.stringify({
           query: 'agent',
           limit: 5,
-          cursor: 'eyJvZmZzZXQiOjEwfQ',
+          cursor: '10',
         }),
       });
 
       if (res.status === 200) {
-        const data = await res.json();
+        const data = await asJson(res);
         expect(data).toHaveProperty('pagination');
         if (data.pagination) {
           expect(data.pagination).toHaveProperty('hasMore');
           expect(data.pagination).toHaveProperty('limit');
         }
       }
+    });
+
+    it('should accept legacy base64(JSON) cursor for backward compatibility', async () => {
+      const res = await fetch(`${V1_BASE}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: 'agent',
+          limit: 5,
+          // legacy service cursor: base64('{"offset":10}')
+          cursor: 'eyJvZmZzZXQiOjEwfQ',
+        }),
+      });
+
+      // Should not be a validation error
+      expect(res.status).not.toBe(400);
     });
 
     it('should validate maximum offset based on limit and Pinecone constraints', async () => {
@@ -336,7 +362,7 @@ describe('V1 Standard API', () => {
       // May be 400 (validation error) or 429 (rate limit) - both are acceptable
       // If 400, check the error message
       if (res.status === 400) {
-        const data = await res.json();
+        const data = await asJson(res);
         expect(data).toHaveProperty('error');
         expect(data.error).toContain('offset cannot exceed');
         expect(data.error).toContain('Consider using cursor-based pagination');
@@ -359,7 +385,7 @@ describe('V1 Standard API', () => {
       });
 
       if (res.status === 200) {
-        const data = await res.json();
+        const data = await asJson(res);
         expect(data).toHaveProperty('results');
         expect(data).toHaveProperty('pagination');
         // Should successfully return results with optimized query
@@ -382,7 +408,7 @@ describe('V1 Standard API', () => {
       });
 
       if (res.status === 200) {
-        const data = await res.json();
+        const data = await asJson(res);
         expect(data).toHaveProperty('results');
         expect(data).toHaveProperty('pagination');
         // Should successfully return results with appropriate buffer for filtering
@@ -401,7 +427,7 @@ describe('V1 Standard API', () => {
       });
 
       if (res.status === 200) {
-        const data = await res.json();
+        const data = await asJson(res);
         // All results should have score >= 0.5
         for (const result of data.results) {
           expect(result.score).toBeGreaterThanOrEqual(0.5);
@@ -421,7 +447,7 @@ describe('V1 Standard API', () => {
       });
 
       if (res.status === 200) {
-        const data = await res.json();
+        const data = await asJson(res);
         if (data.results.length > 0) {
           // Metadata should be undefined or minimal when includeMetadata is false
           const result = data.results[0];
@@ -450,7 +476,7 @@ describe('V1 Standard API', () => {
       expect(res.headers.get('X-Request-ID')).toBeTruthy();
 
       if (res.status === 200) {
-        const data = await res.json();
+        const data = await asJson(res);
         expect(data).toHaveProperty('requestId');
         expect(data.requestId).toBeTruthy();
       }
@@ -516,7 +542,7 @@ describe('V1 Standard API', () => {
       const res = await fetch(`${V1_BASE}/schemas/search`);
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = await asJson(res);
       expect(data).toHaveProperty('request');
       expect(data).toHaveProperty('response');
       expect(data.request).toHaveProperty('$schema');
@@ -527,7 +553,7 @@ describe('V1 Standard API', () => {
       const res = await fetch(`${V1_BASE}/schemas/capabilities`);
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = await asJson(res);
       expect(data).toHaveProperty('response');
       expect(data.response).toHaveProperty('$schema');
     });
@@ -536,7 +562,7 @@ describe('V1 Standard API', () => {
       const res = await fetch(`${V1_BASE}/schemas/health`);
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = await asJson(res);
       expect(data).toHaveProperty('response');
       expect(data.response).toHaveProperty('$schema');
     });
@@ -548,7 +574,7 @@ describe('V1 Standard API', () => {
   });
 
   describe('Error Handling', () => {
-    it('should return standard error format', async () => {
+    it('should return expected error format', async () => {
       const res = await fetch(`${V1_BASE}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -556,7 +582,7 @@ describe('V1 Standard API', () => {
       });
 
       expect(res.status).toBe(400);
-      const data = await res.json();
+      const data = await asJson(res);
       expect(data).toHaveProperty('error');
       expect(data).toHaveProperty('code');
       expect(data).toHaveProperty('status');

@@ -1,12 +1,7 @@
 import type { AgentId, ChainId } from './types.js';
-import type {
-  SemanticAgentRecord,
-  SemanticSearchResponse,
-  SemanticSearchResult,
-} from './types.js';
+import type { SemanticAgentRecord } from './types.js';
 import type {
   EmbeddingProvider,
-  SemanticQueryRequest,
   VectorStoreProvider,
   VectorUpsertItem,
 } from './interfaces.js';
@@ -154,52 +149,9 @@ export class SemanticSearchManager {
     }
   }
 
-  async searchAgents(request: SemanticQueryRequest): Promise<SemanticSearchResponse> {
-    await this.ensureInitialized();
-    const { query, topK, filters, minScore } = request;
-    const embedding = await this.embeddingProvider.generateEmbedding(query);
-
-    const matches = await this.vectorStore.query({
-      vector: embedding,
-      topK,
-      filter: filters,
-    });
-
-    let filteredMatches = matches;
-    if (typeof minScore === 'number') {
-      filteredMatches = matches.filter(match => (match.score ?? 0) >= minScore);
-    }
-
-    const results: SemanticSearchResult[] = filteredMatches.map((match, index) => {
-      const { chainId, agentId } = SemanticSearchManager.parseVectorId(match.id);
-      const metadata = match.metadata || {};
-      const name = typeof metadata.name === 'string' ? metadata.name : undefined;
-      const description = typeof metadata.description === 'string' ? metadata.description : undefined;
-
-      return {
-        rank: index + 1,
-        vectorId: match.id,
-        agentId,
-        chainId,
-        name,
-        description,
-        score: match.score,
-        metadata,
-        matchReasons: match.matchReasons,
-      };
-    });
-
-    return {
-      query,
-      results,
-      total: results.length,
-      timestamp: new Date().toISOString(),
-    };
-  }
-
   /**
-   * Search agents using the standard v1 API format
-   * Supports standard filter operators, pagination, and metadata filtering
+   * Search agents using the v1 schema format
+   * Supports filter operators, pagination, and metadata filtering
    */
   async searchAgentsV1(
     request: StandardSearchRequest,
@@ -240,7 +192,7 @@ export class SemanticSearchManager {
       }
     }
 
-    // Transform standard filters to Pinecone format
+    // Transform v1 filters to Pinecone format
     let pineconeFilters;
     let postFilter: ((metadata: Record<string, unknown>) => boolean) | undefined;
     
@@ -366,7 +318,7 @@ export class SemanticSearchManager {
       const name = typeof metadata.name === 'string' ? metadata.name : '';
       const description = typeof metadata.description === 'string' ? metadata.description : '';
 
-      // Build standard metadata (only if includeMetadata is true)
+      // Build metadata (only if includeMetadata is true)
       let standardMetadata: StandardMetadata | undefined;
       if (includeMetadata) {
         standardMetadata = {

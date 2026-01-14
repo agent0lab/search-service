@@ -4,6 +4,8 @@
  */
 import type { Context } from 'hono';
 import type { Env } from '../../types.js';
+import { createErrorResponse, ErrorCode } from '../../utils/errors.js';
+import { getRequestId } from '../../middleware/request-id.js';
 
 const SEARCH_REQUEST_SCHEMA = {
   $schema: 'http://json-schema.org/draft-07/schema#',
@@ -29,7 +31,7 @@ const SEARCH_REQUEST_SCHEMA = {
     },
     cursor: {
       type: 'string',
-      description: 'Cursor for cursor-based pagination',
+      description: 'Cursor for cursor-based pagination. SDK-compatible format: decimal string offset (e.g., "10"). Also accepts JSON string cursors with "_global_offset" and legacy base64(JSON) cursors.',
     },
     filters: {
       type: 'object',
@@ -221,13 +223,14 @@ export async function schemasHandler(c: Context<{ Bindings: Env }>): Promise<Res
       });
 
     default:
+      // Use consistent error envelope + requestId for 404s
       return c.json(
-        {
-          error: `Schema not found for endpoint: ${endpoint}`,
-          code: 'NOT_FOUND',
-          status: 404,
-          timestamp: new Date().toISOString(),
-        },
+        createErrorResponse(
+          new Error(`Schema not found for endpoint: ${endpoint}`),
+          404,
+          ErrorCode.NOT_FOUND,
+          getRequestId(c as any)
+        ),
         404
       );
   }

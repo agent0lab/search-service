@@ -1,5 +1,5 @@
 /**
- * Enhanced health check endpoint (v1 standard)
+ * Enhanced health check endpoint (v1)
  * Returns detailed health status with version, uptime, and service status
  */
 import type { Context } from 'hono';

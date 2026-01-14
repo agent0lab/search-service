@@ -42,7 +42,6 @@ export interface ChainSyncMessage {
  */
 export const MAX_QUERY_LENGTH = 1000;
 export const MAX_TOP_K = 100;
-export const MAX_REQUEST_SIZE = 10240; // 10KB
 
 /**
  * Rate limiting configuration

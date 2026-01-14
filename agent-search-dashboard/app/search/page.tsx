@@ -61,7 +61,7 @@ function SearchContent() {
   const [hasMore, setHasMore] = useState(false);
   const [total, setTotal] = useState(0);
   
-  // Filter state using standard operators only
+  // Filter state using common operators only
   // equals filters (single values)
   const [equalsFilters, setEqualsFilters] = useState<Record<string, unknown>>({});
   
@@ -77,7 +77,7 @@ function SearchContent() {
   // notExists filters (field must not exist)
   const [notExistsFields, setNotExistsFields] = useState<string[]>([]);
   
-  // Standard field: chainId (using standard operators)
+  // Field: chainId (using common operators)
   const [selectedChainIds, setSelectedChainIds] = useState<number[]>([]);
 
   // New filter state for API extensions
@@ -283,7 +283,7 @@ function SearchContent() {
     setError(null);
 
     try {
-      // Transform filters to v1 standard format (standard fields only)
+      // Transform filters to v1 schema format (common fields only)
       const filters: StandardFilters = {};
       
       // Chain IDs - use chains parameter instead of/in addition to filters
@@ -298,7 +298,7 @@ function SearchContent() {
         }
       }
       
-      // Standard field filters from UI (active, x402support, etc.)
+      // Common field filters from UI (active, x402support, etc.)
       if (Object.keys(equalsFilters).length > 0) {
         filters.equals = { ...filters.equals, ...equalsFilters };
       }
@@ -331,7 +331,7 @@ function SearchContent() {
         filters.in = { ...filters.in, supportedTrusts: supportedTrustsFilter };
       }
       
-      // Custom in filters (for standard fields like mcpTools, a2aSkills, etc.)
+      // Custom in filters (for core fields like mcpTools, a2aSkills, etc.)
       if (Object.keys(inFilters).length > 0) {
         filters.in = { ...filters.in, ...inFilters };
       }
@@ -723,13 +723,13 @@ function SearchContent() {
                         className="mb-3"
                       >
                         {showAdvanced ? <ChevronUp className="h-4 w-4 mr-2" /> : <ChevronDown className="h-4 w-4 mr-2" />}
-                        Advanced Filters (Standard Operators)
+                        Advanced Filters (Common Operators)
                       </Button>
                       {showAdvanced && (
                         <div className="space-y-4 mt-2 p-4 bg-muted/50 rounded-md">
                           <div className="mb-4">
                             <p className="text-xs text-muted-foreground mb-2">
-                              These filters use the Universal Agent Semantic Search API Standard v1.0 operators:
+                              These filters use the v1 search schema operators:
                             </p>
                             <div className="flex flex-wrap gap-2 text-xs mb-3">
                               <Badge variant="outline" className="font-mono">equals</Badge>
@@ -739,14 +739,14 @@ function SearchContent() {
                               <Badge variant="outline" className="font-mono">notExists</Badge>
                             </div>
                             <p className="text-xs text-muted-foreground">
-                              <strong>Supported Standard Fields:</strong> id, cid, agentId, name, description, image, active, x402support, supportedTrusts, mcpEndpoint, mcpVersion, a2aEndpoint, a2aVersion, ens, did, agentWallet, agentWalletChainId, mcpTools, mcpPrompts, mcpResources, a2aSkills, chainId, createdAt, owner, operators, mcp, a2a
+                              <strong>Supported fields:</strong> id, cid, agentId, name, description, image, active, x402support, supportedTrusts, mcpEndpoint, mcpVersion, a2aEndpoint, a2aVersion, ens, did, agentWallet, agentWalletChainId, mcpTools, mcpPrompts, mcpResources, a2aSkills, chainId, createdAt, owner, operators, mcp, a2a
                             </p>
                           </div>
                           
                           <Separator />
                           
                           <div>
-                            <Label className="text-sm font-medium mb-2 block">Standard Field Filters</Label>
+                            <Label className="text-sm font-medium mb-2 block">Field filters</Label>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
                                 <Label htmlFor="activeFilter" className="text-xs">Active Status</Label>
@@ -877,7 +877,7 @@ function SearchContent() {
                                   className="mt-1"
                                 />
                                 <p className="text-xs text-muted-foreground mt-1">
-                                  Uses <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">exists</code> operator. Standard fields: mcpEndpoint, a2aEndpoint, ens, did, agentWallet, etc.
+                                  Uses <code className="text-xs bg-slate-900/60 px-1 py-0.5 rounded">exists</code> operator. Common fields: mcpEndpoint, a2aEndpoint, ens, did, agentWallet, etc.
                                 </p>
                               </div>
                               <div>
@@ -973,7 +973,7 @@ function SearchContent() {
                           <Separator />
                           
                           <div>
-                            <Label className="text-sm font-medium mb-2 block">Custom Standard Field Filters</Label>
+                            <Label className="text-sm font-medium mb-2 block">Custom field filters</Label>
                             <div className="space-y-2">
                               <div>
                                 <Label htmlFor="customEquals" className="text-xs">Equals Filters (JSON format)</Label>
@@ -1023,7 +1023,7 @@ function SearchContent() {
                           <Separator />
                           
                           <div>
-                            <Label className="text-sm font-medium mb-2 block">Active Standard Filters (JSON)</Label>
+                            <Label className="text-sm font-medium mb-2 block">Active filters (JSON)</Label>
                             <div className="text-xs space-y-1 p-2 bg-slate-900/40 rounded border border-slate-800/50 font-mono max-h-40 overflow-y-auto">
                               {(() => {
                                 const filters: StandardFilters = {};
@@ -1035,7 +1035,7 @@ function SearchContent() {
                                   filters.in = { ...filters.in, chainId: selectedChainIds };
                                 }
                                 
-                                // Standard field filters from UI
+                                // Field filters from UI
                                 if (Object.keys(equalsFilters).length > 0) {
                                   filters.equals = { ...filters.equals, ...equalsFilters };
                                 }
@@ -1064,7 +1064,7 @@ function SearchContent() {
                               })()}
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
-                              This is the exact filter format sent to the API using standard operators.
+                              This is the exact filter format sent to the API using common operators.
                             </p>
                           </div>
                         </div>

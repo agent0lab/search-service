@@ -110,7 +110,7 @@ async function waitForServer(port: number = 8787, maxWait: number = 30000): Prom
   console.log(`⏳ Waiting for server to be ready on port ${port}...`);
   
   const startTime = Date.now();
-  const url = `http://localhost:${port}/health`;
+  const url = `http://localhost:${port}/api/v1/health`;
   
   while (Date.now() - startTime < maxWait) {
     try {

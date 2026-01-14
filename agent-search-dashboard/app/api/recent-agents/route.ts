@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-// Default subgraph URLs (matching agent0-sdk)
-const DEFAULT_SUBGRAPH_URLS: Record<number, string> = {
-  11155111: 'https://gateway.thegraph.com/api/00a452ad3cd1900273ea62c1bf283f93/subgraphs/id/6wQRC7geo9XYAhckfmfo8kbMRLeWU8KQd3XsJqFKmZLT', // Ethereum Sepolia
-  84532: 'https://gateway.thegraph.com/api/00a452ad3cd1900273ea62c1bf283f93/subgraphs/id/GjQEDgEKqoh5Yc8MUgxoQoRATEJdEiH7HbocfR1aFiHa', // Base Sepolia
-  80002: 'https://gateway.thegraph.com/api/00a452ad3cd1900273ea62c1bf283f93/subgraphs/id/2A1JB18r1mF2VNP4QBH4mmxd74kbHoM6xLXC8ABAKf7j', // Polygon Amoy
-};
+import { getSubgraphEndpoints, getSubgraphUrl } from '../../../lib/subgraph-endpoints';
 
 interface SubgraphAgent {
   id: string;
@@ -61,7 +55,7 @@ export async function GET(request: NextRequest) {
     // If filtering by chain, only query that chain, otherwise query all chains
     let chainsToQuery: Array<[string, string]>;
     if (filterChainId) {
-      const subgraphUrl = DEFAULT_SUBGRAPH_URLS[filterChainId];
+      const subgraphUrl = getSubgraphUrl(filterChainId);
       if (!subgraphUrl) {
         return NextResponse.json(
           { error: `Chain ID ${filterChainId} is not supported` },
@@ -70,7 +64,7 @@ export async function GET(request: NextRequest) {
       }
       chainsToQuery = [[filterChainId.toString(), subgraphUrl]];
     } else {
-      chainsToQuery = Object.entries(DEFAULT_SUBGRAPH_URLS);
+      chainsToQuery = Object.entries(getSubgraphEndpoints()).map(([k, v]) => [k, v]);
     }
 
     // Query chains in parallel

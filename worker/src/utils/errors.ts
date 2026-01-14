@@ -10,7 +10,7 @@ export enum ErrorCode {
 }
 
 /**
- * Standard error response structure
+ * Error response structure
  */
 export interface ErrorResponse {
   error: string;

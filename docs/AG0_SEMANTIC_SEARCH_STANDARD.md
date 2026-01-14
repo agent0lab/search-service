@@ -1,10 +1,10 @@
-# AG0 Semantic Search Standard
+# AG0 Semantic Search Schema
 
-# Universal Agent Semantic Search API Standard v1.0
+# Agent Semantic Search API Schema (v1)
 
 ## Overview
 
-This standard defines a universal interface for semantic search APIs, enabling hot-swappable providers. Any provider implementing this standard can be used interchangeably with the same client code.
+This document defines the v1 search service schema (endpoints, request/response shapes, pagination, and error format) for semantic search over ERC-8004 agents.
 
 **JSON Schema Support:** All endpoints include JSON Schema definitions for request and response validation. Providers should validate requests against the schema and may optionally expose schemas via `/v1/schemas/{endpoint}` endpoints.
 
@@ -29,7 +29,7 @@ https://provider.example.com/api/v1/search
 
 ### 1. Capabilities Discovery
 
-**Endpoint:** `GET /v1/capabilities`
+**Endpoint:** `GET /api/v1/capabilities`
 
 **Purpose:** Discover provider capabilities, limits, and supported features.
 
@@ -136,7 +136,7 @@ https://provider.example.com/api/v1/search
 
 ### 2. Health Check
 
-**Endpoint:** `GET /v1/health`
+**Endpoint:** `GET /api/v1/health`
 
 **Purpose:** Check service health and availability.
 
@@ -164,7 +164,7 @@ https://provider.example.com/api/v1/search
 
 ### 3. Search
 
-**Endpoint:** `POST /v1/search`
+**Endpoint:** `POST /api/v1/search`
 
 **Purpose:** Perform semantic search query.
 
@@ -336,9 +336,9 @@ Content-Type: application/json
 
 ## Filter Schema
 
-Filters support both standard operators and domain-specific filters based on the `AgentRegistrationFile` schema.
+Filters support both common operators and domain-specific filters based on the `AgentRegistrationFile` schema.
 
-### Standard Operators
+### Common operators
 
 **equals:** Exact match for a single value
 
@@ -464,13 +464,13 @@ All filters correspond to fields in the `AgentRegistrationFile` GraphQL type:
 }
 ```
 
-**Note:** Providers may support additional filters beyond those listed. Check `/v1/capabilities` for the complete list of supported filters.
+**Note:** Providers may support additional filters beyond those listed. Check `/api/v1/capabilities` for the complete list of supported filters.
 
 ---
 
 ## Metadata Schema
 
-Standard metadata fields for search results, matching `AgentRegistrationFile`:
+Common metadata fields for search results, matching `AgentRegistrationFile`:
 
 ```json
 {
@@ -532,13 +532,13 @@ Providers may include additional metadata fields. Clients should handle unknown 
 
 Providers may optionally expose JSON schemas for validation:
 
-**Endpoint:** `GET /v1/schemas/{endpoint}`
+**Endpoint:** `GET /api/v1/schemas/{endpoint}`
 
 **Examples:**
 
-- `GET /v1/schemas/search` - Schema for search request/response
-- `GET /v1/schemas/capabilities` - Schema for capabilities response
-- `GET /v1/schemas/health` - Schema for health response
+- `GET /api/v1/schemas/search` - Schema for search request/response
+- `GET /api/v1/schemas/capabilities` - Schema for capabilities response
+- `GET /api/v1/schemas/health` - Schema for health response
 
 **Response:**
 
@@ -572,7 +572,7 @@ Providers may optionally expose JSON schemas for validation:
 
 ## Error Response
 
-All errors follow a standard format:
+All errors follow a consistent format:
 
 ```json
 {
@@ -617,7 +617,7 @@ When rate limit is exceeded:
 
 - Status: `429 Too Many Requests`
 - Header: `Retry-After: 60` (seconds until retry)
-- Body: Standard error response with `RATE_LIMIT_EXCEEDED` code
+- Body: error response with `RATE_LIMIT_EXCEEDED` code
 
 ---
 
@@ -648,10 +648,15 @@ Response includes:
 
 ### Cursor-based Pagination (Preferred)
 
+Cursor format is **SDK-compatible**:
+
+- `cursor` and `nextCursor` are **decimal string offsets** (e.g., `"0"`, `"10"`, `"25"`), representing the number of items already returned.
+- Providers MAY additionally accept a raw JSON string cursor containing `"_global_offset"` for multi-chain pagination, but the recommended portable format is the decimal string offset.
+
 ```json
 {
   "limit": 10,
-  "cursor": "eyJvZmZzZXQiOjEwfQ"
+  "cursor": "10"
 }
 ```
 
@@ -661,13 +666,13 @@ Response includes:
 {
   "pagination": {
     "hasMore": true,
-    "nextCursor": "eyJvZmZzZXQiOjIwfQ",
+    "nextCursor": "20",
     "limit": 10
   }
 }
 ```
 
-**Note:** Providers may support one or both methods. Check `/v1/capabilities` for supported pagination types. When both `cursor` and `offset` are provided, `cursor` takes precedence.
+**Note:** Providers may support one or both methods. Check `/api/v1/capabilities` for supported pagination types. When both `cursor` and `offset` are provided, `cursor` takes precedence.
 
 ---
 
@@ -734,7 +739,7 @@ Access-Control-Allow-Headers: Content-Type, X-API-Version, X-Request-ID
 
 ### Security Headers
 
-Providers should include standard security headers:
+Providers should include common security headers:
 
 ```
 X-Content-Type-Options: nosniff
@@ -744,7 +749,7 @@ X-XSS-Protection: 1; mode=block
 
 ### Authentication
 
-Authentication is provider-specific and not part of this standard. Providers may require:
+Authentication is provider-specific and not part of this schema. Providers may require:
 
 - API keys in headers: `Authorization: Bearer <token>`
 - API keys in query: `?apiKey=<key>`
@@ -757,18 +762,18 @@ Check provider documentation for authentication requirements.
 
 ## Implementation Checklist
 
-For a provider to be compliant with this standard:
+For an implementation to be compliant with this schema:
 
-- [ ]  Implement `/v1/capabilities` endpoint
-- [ ]  Implement `/v1/health` endpoint
-- [ ]  Implement `/v1/search` endpoint
+- [ ]  Implement `/api/v1/capabilities` endpoint
+- [ ]  Implement `/api/v1/health` endpoint
+- [ ]  Implement `/api/v1/search` endpoint
 - [ ]  Support versioning in URL path
 - [ ]  Return standardized error responses
 - [ ]  Include rate limit headers in responses
 - [ ]  Support request ID tracing
 - [ ]  Support at least one pagination method
 - [ ]  Include provider metadata in responses
-- [ ]  Support standard filter operators
+- [ ]  Support the common filter operators
 - [ ]  Support AgentRegistrationFile filter fields
 - [ ]  Return standardized metadata schema
 - [ ]  Include security headers
@@ -824,20 +829,20 @@ curl -X POST https://provider.example.com/api/v1/search \
   -d '{
     "query": "portfolio management",
     "limit": 20,
-    "cursor": "eyJvZmZzZXQiOjIwfQ"
+    "cursor": "20"
   }'
 ```
 
 ### Check Capabilities
 
 ```bash
-curl https://provider.example.com/v1/capabilities
+curl https://provider.example.com/api/v1/capabilities
 ```
 
 ### Health Check
 
 ```bash
-curl https://provider.example.com/v1/health
+curl https://provider.example.com/api/v1/health
 ```
 
 ### Get JSON Schema (Optional)
@@ -850,11 +855,11 @@ curl https://provider.example.com/api/v1/schemas/search
 
 ## Version History
 
-- **v1.0.0** (2025-12-01) - Initial standard specification
+- **v1.0.0** (2025-12-01) - Initial schema specification
 
 ---
 
 ## License
 
-This standard is provided as-is for interoperability purposes. Implementations may extend the standard with provider-specific features while maintaining backward compatibility.
+This schema is provided as-is for interoperability purposes. Implementations may extend it with provider-specific features while maintaining backward compatibility.
 

@@ -8,7 +8,7 @@ Public-facing agent search dashboard with semantic search capabilities and admin
 
 - **Semantic Search**: Natural language search for ERC-8004 agents with vector similarity matching
 - **Advanced Filtering**: Comprehensive filter system supporting:
-  - **Standard Filters**: Name substring search, chain ID, capabilities, tags
+  - **Core Filters**: Name substring search, chain ID, capabilities, tags
   - **Metadata Filters**: Active status, x402 support, MCP/A2A endpoints, ENS, DID
   - **Array Filters**: Supported trusts, MCP tools/prompts/resources, A2A skills
   - **Owner/Operators**: Filter by agent owner or operator addresses

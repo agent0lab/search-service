@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-// Default subgraph URLs (matching agent0-sdk)
-const DEFAULT_SUBGRAPH_URLS: Record<number, string> = {
-  11155111: 'https://gateway.thegraph.com/api/00a452ad3cd1900273ea62c1bf283f93/subgraphs/id/6wQRC7geo9XYAhckfmfo8kbMRLeWU8KQd3XsJqFKmZLT', // Ethereum Sepolia
-  84532: 'https://gateway.thegraph.com/api/00a452ad3cd1900273ea62c1bf283f93/subgraphs/id/GjQEDgEKqoh5Yc8MUgxoQoRATEJdEiH7HbocfR1aFiHa', // Base Sepolia
-  80002: 'https://gateway.thegraph.com/api/00a452ad3cd1900273ea62c1bf283f93/subgraphs/id/2A1JB18r1mF2VNP4QBH4mmxd74kbHoM6xLXC8ABAKf7j', // Polygon Amoy
-};
+import { getSubgraphUrl } from '../../../lib/subgraph-endpoints';
 
 interface BatchAgentRequest {
   agentIds: string[]; // Format: "chainId:tokenId"
@@ -69,7 +63,7 @@ export async function POST(request: NextRequest) {
     // Query each chain in parallel
     const chainQueries = Object.entries(agentsByChain).map(async ([chainIdStr, agentIds]) => {
       const chainId = parseInt(chainIdStr, 10);
-      const subgraphUrl = DEFAULT_SUBGRAPH_URLS[chainId];
+      const subgraphUrl = getSubgraphUrl(chainId);
       
       if (!subgraphUrl) {
         console.error(`No subgraph URL found for chain ${chainId}`);

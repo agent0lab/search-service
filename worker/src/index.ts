@@ -2,9 +2,6 @@ import { Hono } from 'hono';
 import type { Env } from './types.js';
 import type { ScheduledController, MessageBatch } from '@cloudflare/workers-types';
 import type { ChainSyncMessage } from './types.js';
-import { healthHandler } from './routes/health.js';
-import { searchHandler } from './routes/search.js';
-import { validateSearchRequest } from './middleware/validation.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { createErrorResponse, ErrorCode } from './utils/errors.js';
 // Import v1 routes
@@ -14,6 +11,7 @@ import { searchHandlerV1 } from './routes/v1/search.js';
 import { schemasHandler } from './routes/v1/schemas.js';
 import { validateSearchRequestV1 } from './middleware/validation-v1.js';
 import { requestIdMiddleware } from './middleware/request-id.js';
+import { getRequestId } from './middleware/request-id.js';
 // Import the scheduled handler implementation
 import { scheduled as scheduledHandlerImpl } from './scheduled.js';
 // Import the queue handler implementation
@@ -53,11 +51,7 @@ app.onError((err, c) => {
   return c.json(errorResponse, status);
 });
 
-// Legacy routes (maintained for backward compatibility)
-app.get('/health', healthHandler);
-app.post('/api/search', rateLimitMiddleware, validateSearchRequest, searchHandler);
-
-// V1 Standard API routes
+// v1 API schema routes
 const v1 = new Hono<{ Bindings: Env }>();
 
 // Request ID middleware for all v1 routes
@@ -74,7 +68,10 @@ app.route('/api/v1', v1);
 
 // 404 handler
 app.notFound((c) => {
-  return c.json({ error: 'Not found' }, 404);
+  // Ensure requestId is present and consistent in both headers and body
+  const requestId = getRequestId(c as any);
+  c.header('X-Request-ID', requestId);
+  return c.json(createErrorResponse(new Error('Not found'), 404, ErrorCode.NOT_FOUND, requestId), 404);
 });
 
 // Export default handler that wraps Hono app

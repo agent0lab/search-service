@@ -44,6 +44,22 @@ function loadDevVars(): Record<string, string> {
   }
 }
 
+function loadSubgraphEndpoints(): Record<number, string> {
+  // Expect to be run from search-service/ root (process.cwd()).
+  // Keep it simple and deterministic for operators.
+  const path = join(process.cwd(), 'subgraph-endpoints.json');
+  const raw = readFileSync(path, 'utf-8');
+  const parsed = JSON.parse(raw) as Record<string, string>;
+  const out: Record<number, string> = {};
+  for (const [k, v] of Object.entries(parsed)) {
+    const chainId = Number(k);
+    if (!Number.isFinite(chainId)) continue;
+    if (typeof v !== 'string' || v.trim() === '') continue;
+    out[chainId] = v;
+  }
+  return out;
+}
+
 // Parse command line arguments
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -135,13 +151,8 @@ async function fetchAgentFromSubgraph(
 
 // Get subgraph URL for chain
 function getSubgraphUrl(chainId: number): string {
-  const defaultSubgraphs: Record<number, string> = {
-    11155111: 'https://gateway.thegraph.com/api/00a452ad3cd1900273ea62c1bf283f93/subgraphs/id/6wQRC7geo9XYAhckfmfo8kbMRLeWU8KQd3XsJqFKmZLT',
-    84532: 'https://gateway.thegraph.com/api/00a452ad3cd1900273ea62c1bf283f93/subgraphs/id/GjQEDgEKqoh5Yc8MUgxoQoRATEJdEiH7HbocfR1aFiHa',
-    80002: 'https://gateway.thegraph.com/api/00a452ad3cd1900273ea62c1bf283f93/subgraphs/id/2A1JB18r1mF2VNP4QBH4mmxd74kbHoM6xLXC8ABAKf7j',
-  };
-
-  return defaultSubgraphs[chainId] || '';
+  const endpoints = loadSubgraphEndpoints();
+  return endpoints[chainId] || '';
 }
 
 // Parse vector ID to extract chainId and agentId

@@ -1,5 +1,5 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import type { SemanticSearchFilters } from '../types.js';
+import type { SemanticSearchFilters } from './types.js';
 
 export interface RequestLogEntry {
   id: number;

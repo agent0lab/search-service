@@ -144,7 +144,7 @@ async function runInitialSync(): Promise<void> {
     
     // Try to check if server is responding
     try {
-      const response = await fetch(`${serverUrl}/health`, {
+      const response = await fetch(`${serverUrl}/api/v1/health`, {
         signal: AbortSignal.timeout(2000),
       });
       if (response.ok) {

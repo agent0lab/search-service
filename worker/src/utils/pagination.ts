@@ -4,28 +4,70 @@
 import type { CursorData, PaginationMetadata } from './standard-types.js';
 
 /**
- * Encode cursor data to base64 string
- * Uses btoa() which is available in Cloudflare Workers
+ * Encode cursor data to a cursor string.
+ *
+ * Cursor format (SDK-compatible):
+ * - A plain decimal string representing the global offset (e.g., "0", "10", "25")
+ *
+ * Backward compatibility:
+ * - The service previously emitted base64(JSON) cursors like btoa('{"offset":10}').
  */
 export function encodeCursor(data: CursorData): string {
-  const json = JSON.stringify(data);
-  // btoa() is available in Cloudflare Workers (Web API)
-  return btoa(json);
+  return String(data.offset);
 }
 
 /**
- * Decode cursor string to cursor data
- * Uses atob() which is available in Cloudflare Workers
+ * Decode cursor string to cursor data.
+ *
+ * Accepted input formats:
+ * - SDK single-chain cursor: "10"
+ * - SDK multi-chain cursor: '{"_global_offset":10, ...}' (we use _global_offset)
+ * - Legacy service cursor: base64('{"offset":10}')
  */
 export function decodeCursor(cursor: string): CursorData | null {
+  if (!cursor || typeof cursor !== 'string') {
+    return null;
+  }
+
   try {
+    // 1) Fast path: plain integer string
+    const trimmed = cursor.trim();
+    if (/^\d+$/.test(trimmed)) {
+      const offset = parseInt(trimmed, 10);
+      return { offset };
+    }
+
+    // 2) JSON cursor (SDK multi-chain style)
+    try {
+      const parsed = JSON.parse(trimmed) as unknown;
+      if (parsed && typeof parsed === 'object') {
+        const obj = parsed as Record<string, unknown>;
+        if (typeof obj.offset === 'number' && Number.isFinite(obj.offset)) {
+          return { offset: Math.max(0, Math.floor(obj.offset)) };
+        }
+        if (typeof obj._global_offset === 'number' && Number.isFinite(obj._global_offset)) {
+          return { offset: Math.max(0, Math.floor(obj._global_offset)) };
+        }
+      }
+    } catch {
+      // Not JSON - continue to legacy decoding
+    }
+
+    // 3) Legacy base64(JSON) cursor
     // atob() is available in Cloudflare Workers (Web API)
-    const json = atob(cursor);
-    const data = JSON.parse(json) as CursorData;
-    return data;
+    const json = atob(trimmed);
+    const legacy = JSON.parse(json) as unknown;
+    if (legacy && typeof legacy === 'object') {
+      const obj = legacy as Record<string, unknown>;
+      if (typeof obj.offset === 'number' && Number.isFinite(obj.offset)) {
+        return { offset: Math.max(0, Math.floor(obj.offset)) };
+      }
+    }
   } catch (error) {
     return null;
   }
+
+  return null;
 }
 
 /**

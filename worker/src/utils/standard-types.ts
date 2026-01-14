@@ -1,5 +1,5 @@
 /**
- * Standard API v1 types matching the Universal Agent Semantic Search API Standard v1.0
+ * v1 API schema types for the search service
  */
 
 // Filter Operators
@@ -47,7 +47,7 @@ export interface StandardSearchResult {
   matchReasons?: string[];
 }
 
-// Standard Metadata (AgentRegistrationFile fields)
+// Metadata (AgentRegistrationFile fields)
 export interface StandardMetadata {
   id?: string;
   cid?: string;
