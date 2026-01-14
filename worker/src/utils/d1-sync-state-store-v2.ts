@@ -84,23 +84,29 @@ export class D1SemanticSyncStateStoreV2 {
       return;
     }
 
-    // Build a single multi-row upsert statement.
-    // Note: D1 has practical limits on statement size; callers should keep batches reasonably sized.
-    const valuesSql = entries.map(() => '(?, ?, ?, ?)').join(', ');
-    const sql = `
-      INSERT INTO agent_sync_hashes (chain_id, agent_id, hash, updated_at)
-      VALUES ${valuesSql}
-      ON CONFLICT(chain_id, agent_id) DO UPDATE SET
-        hash = excluded.hash,
-        updated_at = excluded.updated_at
-    `;
+    // Cloudflare D1 has a limit of 100 bound parameters per query (not SQLite's 999).
+    // We need 4 values per row (chainId, agentId, hash, updated_at), so max 25 rows per batch.
+    // Use 24 to stay safely under the limit (24 * 4 = 96 parameters).
+    const maxBatchSize = 24;
+    
+    for (let i = 0; i < entries.length; i += maxBatchSize) {
+      const batch = entries.slice(i, i + maxBatchSize);
+      const valuesSql = batch.map(() => '(?, ?, ?, ?)').join(', ');
+      const sql = `
+        INSERT INTO agent_sync_hashes (chain_id, agent_id, hash, updated_at)
+        VALUES ${valuesSql}
+        ON CONFLICT(chain_id, agent_id) DO UPDATE SET
+          hash = excluded.hash,
+          updated_at = excluded.updated_at
+      `;
 
-    const binds: unknown[] = [];
-    for (const [agentId, hash] of entries) {
-      binds.push(chainId, agentId, hash, nowIso);
+      const binds: unknown[] = [];
+      for (const [agentId, hash] of batch) {
+        binds.push(chainId, agentId, hash, nowIso);
+      }
+
+      await this.db.prepare(sql).bind(...binds).run();
     }
-
-    await this.db.prepare(sql).bind(...binds).run();
   }
 
   async deleteAgentHashes(chainId: string, agentIds: string[]): Promise<void> {
