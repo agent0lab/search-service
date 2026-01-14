@@ -219,6 +219,22 @@ async function processChainSync(
           if (typeof extra.deleted === 'number') {
             agentsDeleted += extra.deleted;
           }
+
+          // Log chain completion event if we have a logId (fire-and-forget, don't block)
+          if (eventLogger && message.logId) {
+            eventLogger.logEvent({
+              syncLogId: message.logId,
+              chainId,
+              eventType: 'chain-complete',
+              timestamp: new Date().toISOString(),
+              agentsIndexed: typeof extra.indexed === 'number' ? extra.indexed : 0,
+              agentsDeleted: typeof extra.deleted === 'number' ? extra.deleted : 0,
+              lastUpdatedAt: typeof extra.lastUpdatedAt === 'string' ? extra.lastUpdatedAt : undefined,
+            }).catch((error) => {
+              console.error(`[queue] Failed to log chain completion event:`, error);
+              // Don't throw - event logging failure shouldn't break the sync
+            });
+          }
         }
       },
       targets,
@@ -312,13 +328,13 @@ async function processChainSync(
               .run();
           }
 
-          // Check if all chains have completed by counting distinct chains in events
+          // Check if all chains have completed by counting distinct chains with completion events
           // Only check if this chain completed successfully (no error)
           if (!syncError) {
             const completedChainsResult = await env.DB.prepare(
-              'SELECT COUNT(DISTINCT chain_id) as completed_count FROM sync_log_events WHERE sync_log_id = ? AND event_type != ?'
+              'SELECT COUNT(DISTINCT chain_id) as completed_count FROM sync_log_events WHERE sync_log_id = ? AND event_type = ?'
             )
-              .bind(message.logId, 'error')
+              .bind(message.logId, 'chain-complete')
               .first<{ completed_count: number }>();
 
             const completedChains = completedChainsResult?.completed_count || 0;
