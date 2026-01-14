@@ -29,6 +29,8 @@ interface SubgraphAgent {
   agentId: string;
   owner?: string | null;
   operators?: string[] | null;
+  agentURI?: string | null;
+  agentWallet?: string | null;
   updatedAt: string;
   createdAt?: string | null;
   registrationFile?: {
@@ -43,7 +45,6 @@ interface SubgraphAgent {
     mcpPrompts?: string[] | null;
     mcpResources?: string[] | null;
     a2aSkills?: string[] | null;
-    agentWallet?: string | null;
     ens?: string | null;
     did?: string | null;
     mcpEndpoint?: string | null;
@@ -282,8 +283,10 @@ export class SemanticSyncRunner {
           agentId
           owner
           operators
-          updatedAt
+          agentURI
+          agentWallet
           createdAt
+          updatedAt
           registrationFile {
             id
             name
@@ -296,7 +299,6 @@ export class SemanticSyncRunner {
             mcpPrompts
             mcpResources
             a2aSkills
-            agentWallet
             ens
             did
             mcpEndpoint
@@ -355,7 +357,8 @@ export class SemanticSyncRunner {
       a2aSkills: reg.a2aSkills ?? undefined,
       ens: reg.ens ?? undefined,
       did: reg.did ?? undefined,
-      agentWallet: reg.agentWallet ?? undefined,
+      agentURI: agent.agentURI ?? undefined,
+      agentWallet: agent.agentWallet ?? undefined,
       active: reg.active ?? undefined,
       x402support: reg.x402support ?? undefined,
       mcpEndpoint: reg.mcpEndpoint ?? undefined,
