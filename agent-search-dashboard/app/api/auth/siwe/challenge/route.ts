@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
     // The Statement field makes wallets recognize this as a "Sign in" request
     const statement = 'Sign in to the Agent Search Dashboard admin section';
     const issuedAt = new Date().toISOString();
+    // Note: Chain ID is optional in SIWE - we'll use 1 for compatibility but accept any chain
     const message = `${domain} wants you to sign in with your Ethereum account:
 ${address}
 

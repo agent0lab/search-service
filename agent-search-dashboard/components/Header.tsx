@@ -3,19 +3,63 @@
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Home, FileText, Search, Shield } from 'lucide-react';
+import { useAccount } from 'wagmi';
+import { Home, FileText, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { WalletButton } from '@/components/wallet/WalletButton';
+import { AdminAccessButton } from '@/components/wallet/AdminAccessButton';
 
 export function Header() {
   const pathname = usePathname();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { address, isConnected } = useAccount();
+  const [isWhitelisted, setIsWhitelisted] = useState(false);
+  const [checkingWhitelist, setCheckingWhitelist] = useState(false);
 
+  // Check if connected address is whitelisted
   useEffect(() => {
-    fetch('/api/auth/session')
-      .then((res) => res.json() as Promise<{ authenticated: boolean }>)
-      .then((data) => setIsAuthenticated(data.authenticated));
-  }, []);
+    // Handle disconnected state
+    if (!isConnected || !address) {
+      // Use setTimeout to avoid synchronous setState in effect
+      const timeoutId = setTimeout(() => {
+        setIsWhitelisted(false);
+        setCheckingWhitelist(false);
+      }, 0);
+      return () => clearTimeout(timeoutId);
+    }
+
+    let cancelled = false;
+
+    // Use a small delay to avoid calling setState synchronously
+    const timeoutId = setTimeout(() => {
+      if (cancelled) return;
+      setCheckingWhitelist(true);
+      
+      fetch(`/api/auth/whitelist-check?address=${encodeURIComponent(address)}`)
+        .then((res) => res.json() as Promise<{ whitelisted: boolean }>)
+        .then((data) => {
+          if (!cancelled) {
+            setIsWhitelisted(data.whitelisted);
+          }
+        })
+        .catch((error) => {
+          if (!cancelled) {
+            console.error('Failed to check whitelist:', error);
+            setIsWhitelisted(false);
+          }
+        })
+        .finally(() => {
+          if (!cancelled) {
+            setCheckingWhitelist(false);
+          }
+        });
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [isConnected, address]);
 
   const navItems = [
     { href: '/', label: 'Home', icon: Home },
@@ -69,28 +113,9 @@ export function Header() {
               );
             })}
             <div className="h-6 w-px bg-slate-700 mx-1" />
-            {isAuthenticated ? (
-              <Link href="/dashboard">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="gap-2 border-slate-700 hover:border-primary/50 hover:bg-primary/10 hover:text-primary transition-all duration-200 active:scale-95"
-                >
-                  <Shield className="h-4 w-4" />
-                  <span className="font-medium">Admin</span>
-                </Button>
-              </Link>
-            ) : (
-              <Link href="/login">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="gap-2 text-muted-foreground hover:text-foreground hover:bg-slate-800/80 transition-all duration-200 active:scale-95"
-                >
-                  <Shield className="h-4 w-4" />
-                  <span className="font-medium">Admin</span>
-                </Button>
-              </Link>
+            <WalletButton />
+            {isConnected && address && isWhitelisted && !checkingWhitelist && (
+              <AdminAccessButton address={address} />
             )}
           </nav>
         </div>
