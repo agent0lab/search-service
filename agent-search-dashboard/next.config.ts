@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Enable standalone output for OpenNext compatibility
+  output: 'standalone',
+  
   // Exclude problematic packages from server-side bundling
   serverExternalPackages: [
     'thread-stream', 

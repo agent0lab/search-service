@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSubgraphUrl } from '../../../lib/subgraph-endpoints';
+import { getSubgraphUrl } from '@/lib/subgraph-endpoints';
 
 interface BatchAgentRequest {
   agentIds: string[]; // Format: "chainId:tokenId"

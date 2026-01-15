@@ -58,3 +58,10 @@ export async function healthHandlerV1(c: Context<{ Bindings: Env }>): Promise<Re
 
 
 
+<<<<<<< Updated upstream:worker/src/routes/v1/health.ts
+=======
+
+
+
+
+>>>>>>> Stashed changes:worker/src/routes/health.ts
