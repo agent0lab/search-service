@@ -12,4 +12,5 @@ binding = "ASSETS"
 binding = "DB"
 database_name = "semantic-sync-state"
 database_id = "164eaaf0-6527-4e1b-b859-5805aae1b6c9"
+migrations_dir = "../migrations"
 

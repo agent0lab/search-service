@@ -1,7 +1,7 @@
 'use client';
 
 import { getDefaultConfig } from '@rainbow-me/rainbowkit';
-import { mainnet } from 'wagmi/chains';
+import { sepolia, baseSepolia, polygonAmoy } from 'wagmi/chains';
 
 // Get Reown (WalletConnect) project ID from environment
 // Get one for free at https://cloud.reown.com
@@ -34,9 +34,9 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
 }
 
 export const wagmiConfig = getDefaultConfig({
-  appName: 'Search Service Admin',
+  appName: 'Agent0 Search',
   projectId: projectId || '00000000000000000000000000000000', // Placeholder - replace with your project ID
-  chains: [mainnet],
+  chains: [sepolia, baseSepolia, polygonAmoy], // Testnets: Ethereum Sepolia (default), Base Sepolia, Polygon Amoy
   ssr: true, // Enable SSR for Next.js
 });
 

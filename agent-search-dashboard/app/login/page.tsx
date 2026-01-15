@@ -1,4 +1,9 @@
+'use client';
+
 import { LoginButton } from '@/components/siwe/LoginButton';
+
+// Force dynamic rendering since LoginButton uses wagmi hooks
+export const dynamic = 'force-dynamic';
 
 export default function LoginPage() {
   return (
