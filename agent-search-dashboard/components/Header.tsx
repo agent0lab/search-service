@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAccount } from 'wagmi';
-import { Home, FileText, Search } from 'lucide-react';
+import { Home, FileText, Search, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { WalletButton } from '@/components/wallet/WalletButton';
@@ -65,6 +65,7 @@ export function Header() {
     { href: '/', label: 'Home', icon: Home },
     { href: '/api-docs', label: 'API Docs', icon: FileText },
     { href: '/search', label: 'Search', icon: Search },
+    { href: '/create-agent', label: 'Create Agent', icon: Plus },
   ];
 
   return (
@@ -84,7 +85,8 @@ export function Header() {
               const Icon = item.icon;
               const isActive = pathname === item.href || 
                 (item.href === '/' && pathname === '/') ||
-                (item.href === '/search' && pathname?.startsWith('/search'));
+                (item.href === '/search' && pathname?.startsWith('/search')) ||
+                (item.href === '/create-agent' && pathname?.startsWith('/create-agent'));
               
               return (
                 <Link key={item.href} href={item.href}>
