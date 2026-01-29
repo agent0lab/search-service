@@ -228,7 +228,7 @@ maybeDescribe('V1 API', () => {
           limit: 5,
           filters: {
             in: {
-              chainId: [11155111, 84532],
+              chainId: [1, 11155111],
               supportedTrusts: ['reputation'],
             },
           },
@@ -247,7 +247,7 @@ maybeDescribe('V1 API', () => {
           limit: 5,
           filters: {
             notIn: {
-              chainId: [80002],
+              chainId: [11155111],
             },
           },
         }),

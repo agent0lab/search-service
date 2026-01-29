@@ -55,13 +55,3 @@ export async function healthHandlerV1(c: Context<{ Bindings: Env }>): Promise<Re
   const statusCode = status.status === 'ok' ? 200 : 503;
   return c.json(status, statusCode);
 }
-
-
-
-<<<<<<< Updated upstream:worker/src/routes/v1/health.ts
-=======
-
-
-
-
->>>>>>> Stashed changes:worker/src/routes/health.ts

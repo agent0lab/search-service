@@ -51,7 +51,7 @@ describe('Config Store', () => {
   describe('getChains', () => {
     it('should return default chains when no config exists', async () => {
       const chains = await getChains(db);
-      expect(chains).toEqual([11155111, 84532, 80002]);
+      expect(chains).toEqual([1, 11155111]);
     });
 
     it('should return configured chains from D1', async () => {
@@ -59,7 +59,7 @@ describe('Config Store', () => {
       // In a real scenario with actual D1, the query would return the stored value
       const chains = await getChains(db);
       // Should return defaults when no config exists
-      expect(chains).toEqual([11155111, 84532, 80002]);
+      expect(chains).toEqual([1, 11155111]);
     });
   });
 
@@ -72,7 +72,7 @@ describe('Config Store', () => {
 
   describe('setChains', () => {
     it('should save chains to D1', async () => {
-      await setChains(db, [11155111, 84532]);
+      await setChains(db, [1, 11155111]);
       // In a real test, we'd verify the data was saved
       expect(true).toBe(true); // Placeholder
     });

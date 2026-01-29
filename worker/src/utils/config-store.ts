@@ -4,7 +4,7 @@ import { getDefaultSubgraphEndpoints, type SubgraphEndpointMap } from './subgrap
 /**
  * Default configuration values
  */
-const DEFAULT_CHAINS = [11155111, 84532, 80002]; // Sepolia, Base Sepolia, Polygon Amoy
+const DEFAULT_CHAINS = [1, 11155111]; // Ethereum Mainnet, Ethereum Sepolia
 const DEFAULT_CRON_INTERVAL = '*/15 * * * *'; // Every 15 minutes
 const DEFAULT_SUBGRAPH_URLS = getDefaultSubgraphEndpoints();
 

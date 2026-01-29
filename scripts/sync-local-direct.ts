@@ -77,7 +77,7 @@ async function syncStateToD1(state: SemanticSyncState): Promise<void> {
  * Get chains from D1 config or use defaults
  */
 async function getChainsFromD1(): Promise<number[]> {
-  const defaultChains = [11155111, 84532]; // Sepolia, Base Sepolia
+  const defaultChains = [1, 11155111]; // Ethereum Mainnet, Ethereum Sepolia
   
   try {
     const result = execSync(

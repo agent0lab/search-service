@@ -85,7 +85,7 @@ describe('SyncLogger', () => {
 
   describe('startLog', () => {
     it('should create a new log entry', async () => {
-      const chains = [11155111, 84532];
+      const chains = [1, 11155111];
       const logId = await logger.startLog(chains);
       expect(logId).toBeGreaterThan(0);
     });
@@ -93,7 +93,7 @@ describe('SyncLogger', () => {
 
   describe('completeLog', () => {
     it('should update log entry with completion info', async () => {
-      const chains = [11155111, 84532];
+      const chains = [1, 11155111];
       const logId = await logger.startLog(chains);
 
       await logger.completeLog(logId, 'success', {
@@ -123,8 +123,8 @@ describe('SyncLogger', () => {
 
   describe('getRecentLogs', () => {
     it('should return recent logs', async () => {
+      await logger.startLog([1]);
       await logger.startLog([11155111]);
-      await logger.startLog([84532]);
 
       const logs = await logger.getRecentLogs(10);
       // Mock returns empty array, but structure is correct

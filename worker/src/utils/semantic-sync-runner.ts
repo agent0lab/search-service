@@ -50,7 +50,8 @@ interface SubgraphAgent {
     description?: string | null;
     image?: string | null;
     active?: boolean | null;
-    x402support?: boolean | null;
+    x402Support?: boolean | null;
+    x402support?: boolean | null; // legacy subgraph field name
     supportedTrusts?: string[] | null;
     mcpTools?: string[] | null;
     mcpPrompts?: string[] | null;
@@ -143,7 +144,7 @@ export class SemanticSyncRunner {
       // Track max updatedAt in this page so we can advance cursor even if nothing changes.
       let maxUpdatedAt = lastUpdatedAt;
 
-      // Partition agents (orphan deletes vs index candidates)
+      // Only index agents with a registration file (name, description, etc.); delete others from index.
       const toDelete: Array<{ chainId: number; agentId: string }> = [];
       const deleteAgentIds: string[] = [];
       const indexCandidates: Array<{ agentId: string; record: SemanticAgentRecord; hash: string }> = [];
@@ -157,7 +158,6 @@ export class SemanticSyncRunner {
         const agentId = agent.id;
         const agentChainId = Number(agent.chainId);
 
-        // Orphan: no registration file -> delete from vector store and remove hash
         if (!agent.registrationFile) {
           toDelete.push({ chainId: agentChainId, agentId });
           deleteAgentIds.push(agentId);
@@ -169,11 +169,9 @@ export class SemanticSyncRunner {
         indexCandidates.push({ agentId, record, hash });
       }
 
-      // Fetch previous hashes only for this page's agent IDs
       const candidateIds = indexCandidates.map(c => c.agentId);
       const existingHashes = await this.options.stateStore.getAgentHashes(chainKey, candidateIds);
 
-      // Decide which agents actually changed
       const toIndex: SemanticAgentRecord[] = [];
       const upsertHashes: Record<string, string> = {};
       for (const candidate of indexCandidates) {
@@ -183,8 +181,7 @@ export class SemanticSyncRunner {
         toIndex.push(candidate.record);
         upsertHashes[candidate.agentId] = candidate.hash;
       }
-      
-      // Index new/changed agents
+
       if (toIndex.length > 0) {
         if (toIndex.length === 1) {
           await this.searchManager.indexAgent(toIndex[0]);
@@ -193,19 +190,15 @@ export class SemanticSyncRunner {
         }
         totalIndexed += toIndex.length;
       }
-      
-      // Delete orphaned agents (no registration file)
+
       if (toDelete.length > 0) {
         await this.searchManager.deleteAgentsBatch(toDelete);
         totalDeleted += toDelete.length;
+        await this.options.stateStore.deleteAgentHashes(chainKey, deleteAgentIds);
       }
 
-      // Persist hash updates/deletes after successful vector writes
       if (Object.keys(upsertHashes).length > 0) {
         await this.options.stateStore.upsertAgentHashes(chainKey, upsertHashes);
-      }
-      if (deleteAgentIds.length > 0) {
-        await this.options.stateStore.deleteAgentHashes(chainKey, deleteAgentIds);
       }
 
       // Persist cursor after successful processing of this page
@@ -284,7 +277,7 @@ export class SemanticSyncRunner {
             description
             image
             active
-            x402support
+            x402Support
             supportedTrusts
             mcpTools
             mcpPrompts
@@ -358,7 +351,7 @@ export class SemanticSyncRunner {
       agentURI: agent.agentURI ?? undefined,
       agentWallet: agent.agentWallet ?? undefined,
       active: reg.active ?? undefined,
-      x402support: reg.x402support ?? undefined,
+      x402support: reg.x402Support ?? reg.x402support ?? undefined,
       mcpEndpoint: reg.mcpEndpoint ?? undefined,
       mcpVersion: reg.mcpVersion ?? undefined,
       a2aEndpoint: reg.a2aEndpoint ?? undefined,

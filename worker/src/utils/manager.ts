@@ -176,7 +176,7 @@ export class SemanticSearchManager {
           mergedFilters.in.chainId = allChains;
         } else {
           // Fallback: use common chains if getConfiguredChains not provided
-          mergedFilters.in.chainId = [11155111, 84532, 80002];
+          mergedFilters.in.chainId = [1, 11155111];
         }
       } else if (Array.isArray(chains) && chains.length > 0) {
         if (chains.length === 1) {
