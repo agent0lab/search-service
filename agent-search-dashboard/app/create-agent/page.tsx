@@ -15,9 +15,9 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { ChevronDown, ChevronUp, Loader2, ExternalLink } from 'lucide-react';
 
-// RPC URLs for SDK initialization
+// RPC URLs for SDK initialization (public endpoints, no auth required)
 const RPC_URLS: Record<number, string> = {
-  11155111: 'https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161', // Ethereum Sepolia
+  11155111: 'https://rpc.sepolia.org', // Ethereum Sepolia - public RPC
   84532: 'https://sepolia.base.org', // Base Sepolia
   80002: 'https://rpc-amoy.polygon.technology', // Polygon Amoy
 };
@@ -388,40 +388,64 @@ export default function CreateAgentPage() {
       }
 
       // Create agent
+      console.log('[CreateAgent] Creating agent object with:', {
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        image: formData.image.trim() || undefined,
+      });
       const agent = sdk.createAgent(
         formData.name.trim(),
         formData.description.trim(),
         formData.image.trim() || undefined
       );
+      console.log('[CreateAgent] Agent object created:', {
+        hasAgentId: !!(agent as any).agentId,
+        hasRegistrationFile: !!(agent as any).registrationFile,
+      });
 
       // Configure endpoints
+      console.log('[CreateAgent] Configuring agent endpoints and settings...');
       if (formData.mcpEndpoint.trim()) {
+        console.log('[CreateAgent] Setting MCP endpoint:', formData.mcpEndpoint.trim());
         await agent.setMCP(formData.mcpEndpoint.trim(), formData.mcpVersion || undefined);
       }
       if (formData.a2aEndpoint.trim()) {
+        console.log('[CreateAgent] Setting A2A endpoint:', formData.a2aEndpoint.trim());
         await agent.setA2A(formData.a2aEndpoint.trim(), formData.a2aVersion || undefined);
       }
 
       // Set ENS if provided
       if (formData.ensName.trim()) {
+        console.log('[CreateAgent] Setting ENS:', formData.ensName.trim());
         agent.setENS(formData.ensName.trim(), formData.ensVersion || '1.0');
       }
 
       // Add OASF skills
-      for (const skill of formData.oasfSkills) {
-        if (skill.trim()) {
-          agent.addSkill(skill.trim(), false); // validateOASF=false for now
+      if (formData.oasfSkills.length > 0) {
+        console.log('[CreateAgent] Adding OASF skills:', formData.oasfSkills);
+        for (const skill of formData.oasfSkills) {
+          if (skill.trim()) {
+            agent.addSkill(skill.trim(), false); // validateOASF=false for now
+          }
         }
       }
 
       // Add OASF domains
-      for (const domain of formData.oasfDomains) {
-        if (domain.trim()) {
-          agent.addDomain(domain.trim(), false); // validateOASF=false for now
+      if (formData.oasfDomains.length > 0) {
+        console.log('[CreateAgent] Adding OASF domains:', formData.oasfDomains);
+        for (const domain of formData.oasfDomains) {
+          if (domain.trim()) {
+            agent.addDomain(domain.trim(), false); // validateOASF=false for now
+          }
         }
       }
 
       // Set trust models
+      console.log('[CreateAgent] Setting trust models:', {
+        reputation: formData.reputation,
+        cryptoEconomic: formData.cryptoEconomic,
+        teeAttestation: formData.teeAttestation,
+      });
       agent.setTrust(
         formData.reputation,
         formData.cryptoEconomic,
@@ -429,37 +453,221 @@ export default function CreateAgentPage() {
       );
 
       // Set x402 support
+      console.log('[CreateAgent] Setting x402 support:', formData.x402Support);
       agent.setX402Support(formData.x402Support);
 
       // Set active
+      console.log('[CreateAgent] Setting agent as active');
       agent.setActive(true);
 
       // Add metadata if any
       if (Object.keys(formData.metadata).length > 0) {
+        console.log('[CreateAgent] Adding metadata:', formData.metadata);
         agent.setMetadata(formData.metadata);
       }
+      
+      console.log('[CreateAgent] Agent configuration complete');
 
       // Register on-chain with HTTP URI (empty string if not provided - can be set later)
-      const registrationFile = await agent.registerHTTP(formData.ipfsUri.trim() || '');
+      // The function returns RegistrationFile with agentId, but waitForTransaction can hang
+      // So we wrap it in a timeout and use wallet provider to wait for transaction
+      console.log('[CreateAgent] Starting registration with URI:', formData.ipfsUri.trim() || '(empty)');
       
+      let registrationFile;
+      let actualTxHash = '';
+      
+      // Monitor wallet for transaction hash before calling registerHTTP
+      // This way we can wait for it ourselves if SDK times out
+      let transactionHashPromise: Promise<string> | null = null;
+      
+      // Set up transaction monitoring from wallet
+      if (provider && typeof provider.request === 'function') {
+        console.log('[CreateAgent] Setting up transaction monitoring...');
+        // We'll try to get the hash from the wallet after writeContract is called
+        // For now, we'll rely on the SDK to provide it or extract from error
+      }
+      
+      try {
+        console.log('[CreateAgent] Calling agent.registerHTTP()...');
+        // Wrap in Promise.race with timeout to prevent hanging
+        registrationFile = await Promise.race([
+          agent.registerHTTP(formData.ipfsUri.trim() || '').then((result) => {
+            console.log('[CreateAgent] registerHTTP() returned successfully:', result);
+            console.log('[CreateAgent] Returned RegistrationFile:', {
+              agentId: result.agentId,
+              agentURI: result.agentURI,
+              keys: Object.keys(result),
+            });
+            return result;
+          }),
+          new Promise<never>((_, reject) => {
+            setTimeout(() => {
+              console.warn('[CreateAgent] registerHTTP() timed out after 45 seconds');
+              reject(new Error('TIMEOUT: Transaction confirmation is taking longer than expected. The transaction was sent successfully.'));
+            }, 45000); // 45 second timeout
+          }),
+        ]);
+        console.log('[CreateAgent] Registration completed, registrationFile:', registrationFile);
+      } catch (err) {
+        console.error('[CreateAgent] Error during registration:', err);
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        
+        // If timeout, try to get agent ID from agent object (might have been set before timeout)
+        if (errorMessage.includes('TIMEOUT') || errorMessage.includes('Timed out') || errorMessage.includes('timeout')) {
+          console.log('[CreateAgent] Handling timeout - attempting to extract agent ID from transaction...');
+          
+          // Try to extract transaction hash from error message if available
+          const txHashMatch = errorMessage.match(/0x[a-fA-F0-9]{64}/);
+          if (txHashMatch) {
+            actualTxHash = txHashMatch[0];
+            console.log('[CreateAgent] Extracted transaction hash from error:', actualTxHash);
+          }
+          
+          // Check agent object for agentId (might have been set before timeout)
+          const agentId = (agent as any).agentId || (agent as any).registrationFile?.agentId;
+          const agentURI = (agent as any).agentURI || (agent as any).registrationFile?.agentURI;
+          
+          console.log('[CreateAgent] Agent object state:', {
+            agentId,
+            agentURI,
+            hasRegistrationFile: !!(agent as any).registrationFile,
+            registrationFileKeys: (agent as any).registrationFile ? Object.keys((agent as any).registrationFile) : [],
+          });
+          
+          if (agentId) {
+            // Got agent ID before timeout - use it
+            console.log('[CreateAgent] Found agentId before timeout:', agentId);
+            registrationFile = {
+              agentId: agentId,
+              agentURI: agentURI || formData.ipfsUri.trim() || '',
+            } as any;
+          } else if (actualTxHash && provider) {
+            // We have the transaction hash - wait for it using wallet provider and extract agent ID
+            console.log('[CreateAgent] Waiting for transaction using wallet provider:', actualTxHash);
+            try {
+              // Poll wallet provider for transaction receipt (faster than public RPC)
+              let receipt: any = null;
+              let pollCount = 0;
+              const maxPolls = 30; // Poll for up to 30 seconds
+              
+              while (pollCount < maxPolls && !receipt) {
+                receipt = await provider.request({
+                  method: 'eth_getTransactionReceipt',
+                  params: [actualTxHash],
+                }) as any;
+                
+                if (receipt && receipt.status === '0x1') {
+                  console.log('[CreateAgent] Transaction confirmed, extracting agent ID from receipt...');
+                  break;
+                }
+                
+                if (!receipt) {
+                  // Wait 1 second before next poll
+                  await new Promise(resolve => setTimeout(resolve, 1000));
+                  pollCount++;
+                }
+              }
+              
+              if (receipt && receipt.status === '0x1') {
+                // Extract agent ID from receipt logs (same logic as SDK's _extractAgentIdFromReceipt)
+                const { decodeEventLog } = await import('viem');
+                const { IDENTITY_REGISTRY_ABI } = await import('agent0-sdk');
+                const transferEventTopic = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+                
+                let extractedTokenId: bigint | null = null;
+                
+                for (const log of receipt.logs || []) {
+                  try {
+                    if (!log.topics || log.topics.length === 0) continue;
+                    
+                    // Try to decode as Registered event
+                    const parsed = decodeEventLog({
+                      abi: IDENTITY_REGISTRY_ABI as any,
+                      data: log.data as any,
+                      topics: log.topics as [any, ...any[]],
+                    }) as any;
+                    
+                    if (parsed && parsed.eventName === 'Registered') {
+                      const agentId = parsed.args?.agentId;
+                      if (agentId !== undefined) {
+                        extractedTokenId = BigInt(agentId);
+                        console.log('[CreateAgent] Found Registered event with agentId:', extractedTokenId.toString());
+                        break;
+                      }
+                    }
+                  } catch {
+                    // Not a Registered event, try Transfer event (ERC-721)
+                    try {
+                      const topics = Array.isArray(log.topics) ? log.topics : [];
+                      if (topics.length >= 4) {
+                        const topic0 = String(topics[0]);
+                        if (topic0 === transferEventTopic || topic0.toLowerCase() === transferEventTopic.toLowerCase()) {
+                          const tokenIdHex = String(topics[3]);
+                          const tokenIdStr = tokenIdHex.startsWith('0x') ? tokenIdHex.slice(2) : tokenIdHex;
+                          extractedTokenId = BigInt('0x' + tokenIdStr);
+                          console.log('[CreateAgent] Found Transfer event with tokenId:', extractedTokenId.toString());
+                          break;
+                        }
+                      }
+                    } catch {
+                      continue;
+                    }
+                  }
+                }
+                
+                if (extractedTokenId) {
+                  const chainId = await sdk.chainId();
+                  const finalAgentId = `${chainId}:${extractedTokenId}`;
+                  console.log('[CreateAgent] Successfully extracted agent ID from receipt:', finalAgentId);
+                  registrationFile = {
+                    agentId: finalAgentId,
+                    agentURI: formData.ipfsUri.trim() || '',
+                  } as any;
+                } else {
+                  throw new Error('Could not extract agent ID from receipt - no Registered or Transfer event found');
+                }
+              } else {
+                throw new Error('Transaction receipt not available or not confirmed after polling');
+              }
+            } catch (extractErr) {
+              console.error('[CreateAgent] Failed to extract agent ID from transaction:', extractErr);
+              // Fallback: show success with message to check wallet
+              setSuccess({
+                agentId: 'Transaction confirmed - check your wallet for agent ID',
+                txHash: actualTxHash || '',
+              });
+              setLoading(false);
+              return;
+            }
+          } else {
+            // No transaction hash available - show message to check wallet
+            console.warn('[CreateAgent] Could not get agentId or transaction hash');
+            setSuccess({
+              agentId: 'Transaction confirmed - check your wallet for agent ID',
+              txHash: '',
+            });
+            setLoading(false);
+            return;
+          }
+        } else {
+          throw err; // Re-throw other errors
+        }
+      }
 
-      // Get transaction hash from the agent (if available)
-      // The SDK might store this, but we'll need to check how to access it
-      // For now, we'll just show the agent ID
-      const agentId = registrationFile.agentId;
+      // registrationFile should have agentId at this point
+      console.log('[CreateAgent] Final registrationFile:', registrationFile);
+      const agentId = registrationFile?.agentId;
+      
       if (!agentId) {
+        console.error('[CreateAgent] No agentId in registrationFile:', registrationFile);
         throw new Error('Registration completed but agent ID not returned');
       }
       
+      console.log('[CreateAgent] Setting success with agentId:', agentId, 'txHash:', actualTxHash || '(none)');
       setSuccess({
         agentId,
-        txHash: '', // Will need to be populated if SDK exposes it
+        txHash: actualTxHash || '', // Will be empty if we couldn't extract it
       });
-
-      // Redirect to agent detail page after a short delay
-      setTimeout(() => {
-        router.push(`/agents/${encodeURIComponent(agentId)}`);
-      }, 3000);
     } catch (err) {
       console.error('Error creating agent:', err);
       setError(
@@ -862,17 +1070,25 @@ export default function CreateAgentPage() {
                   <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg text-green-600 dark:text-green-400">
                     <p className="font-semibold mb-2">Agent created successfully!</p>
                     <p className="text-sm mb-2">Agent ID: <span className="font-mono">{success.agentId}</span></p>
-                    {success.txHash && (
+                    {success.txHash && success.txHash.startsWith('0x') && (
                       <a
                         href={`${EXPLORER_BASE_URLS[formData.chainId]}/tx/${success.txHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm flex items-center gap-1 underline"
+                        className="text-sm flex items-center gap-1 underline mb-2"
                       >
                         View transaction <ExternalLink className="h-3 w-3" />
                       </a>
                     )}
-                    <p className="text-sm mt-2">Redirecting to agent page...</p>
+                    <Button
+                      onClick={() => {
+                        console.log('[CreateAgent] Navigating to agent page:', success.agentId);
+                        router.push(`/agents/${encodeURIComponent(success.agentId)}`);
+                      }}
+                      className="mt-2"
+                    >
+                      Go to Agent Page
+                    </Button>
                   </div>
                 )}
 

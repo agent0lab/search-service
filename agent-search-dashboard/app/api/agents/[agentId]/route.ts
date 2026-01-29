@@ -3,8 +3,9 @@ import { SDK } from 'agent0-sdk';
 import { getSubgraphUrl } from '../../../../lib/subgraph-endpoints';
 
 // RPC URLs for SDK initialization (read-only, no signer needed)
+// Using public endpoints that don't require authentication
 const RPC_URLS: Record<number, string> = {
-  11155111: 'https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161', // Ethereum Sepolia
+  11155111: 'https://rpc.sepolia.org', // Ethereum Sepolia - public RPC
   84532: 'https://sepolia.base.org', // Base Sepolia
   80002: 'https://rpc-amoy.polygon.technology', // Polygon Amoy
 };
