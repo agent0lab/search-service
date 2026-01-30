@@ -1,4 +1,4 @@
-import endpointsJson from '../../subgraph-endpoints.json';
+import endpointsJson from '../subgraph-endpoints.json';
 
 export type SubgraphEndpointMap = Record<number, string>;
 

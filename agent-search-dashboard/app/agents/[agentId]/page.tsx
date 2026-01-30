@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { LiquidEtherBackground } from '@/components/LiquidEtherBackground';
+import { CHAIN_NAMES } from '@/lib/chain-config';
 
 interface AgentCardSkill {
   id?: string;
@@ -161,6 +162,7 @@ export default function AgentDetailPage() {
 
   const getChainExplorerUrl = (chainId: number, address: string) => {
     const explorers: Record<number, string> = {
+      1: `https://etherscan.io/address/${address}`,
       11155111: `https://sepolia.etherscan.io/address/${address}`,
       84532: `https://sepolia.basescan.org/address/${address}`,
       80002: `https://amoy.polygonscan.com/address/${address}`,
@@ -319,14 +321,7 @@ export default function AgentDetailPage() {
                   )}
                   <Badge variant="outline" className="text-xs">
                     <Network className="h-3 w-3 mr-1" />
-                    {(() => {
-                      const chainNames: Record<number, string> = {
-                        11155111: 'Ethereum Sepolia',
-                        84532: 'Base Sepolia',
-                        80002: 'Polygon Amoy',
-                      };
-                      return chainNames[agent.chainId] || `Chain ${agent.chainId}`;
-                    })()}
+                    {CHAIN_NAMES[agent.chainId] ?? `Chain ${agent.chainId}`}
                   </Badge>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
@@ -380,22 +375,14 @@ export default function AgentDetailPage() {
                     <div>
                       <div className="text-xs font-medium mb-1 text-muted-foreground">Chain</div>
                       <div className="text-sm font-semibold">
-                        {(() => {
-                          const chainNames: Record<number, string> = {
-                            11155111: 'Ethereum Sepolia',
-                            84532: 'Base Sepolia',
-                            80002: 'Polygon Amoy',
-                          };
-                          const chainName = chainNames[agent.chainId];
-                          return chainName ? (
-                            <>
-                              {chainName}
-                              <span className="text-xs text-muted-foreground font-mono ml-2">({agent.chainId})</span>
-                            </>
-                          ) : (
-                            `Chain ${agent.chainId}`
-                          );
-                        })()}
+                        {CHAIN_NAMES[agent.chainId] ? (
+                          <>
+                            {CHAIN_NAMES[agent.chainId]}
+                            <span className="text-xs text-muted-foreground font-mono ml-2">({agent.chainId})</span>
+                          </>
+                        ) : (
+                          `Chain ${agent.chainId}`
+                        )}
                       </div>
                     </div>
                     <div>

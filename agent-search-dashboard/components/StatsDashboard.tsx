@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Users, TrendingUp, Network } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CHAIN_NAMES } from '@/lib/chain-config';
 
 interface StatsData {
   totalAgents: number;
@@ -18,12 +19,6 @@ interface StatsData {
   a2aEnabled: number;
   growthRate7d: number;
 }
-
-const CHAIN_NAMES: Record<number, string> = {
-  11155111: 'Ethereum Sepolia',
-  84532: 'Base Sepolia',
-  80002: 'Polygon Amoy',
-};
 
 interface StatsDashboardProps {
   activeChainId?: number;

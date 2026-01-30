@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { LiquidEtherBackground } from '@/components/LiquidEtherBackground';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { getAvailableChains } from '@/lib/chain-config';
 import { useState } from 'react';
 
 const API_ENDPOINT = 'https://agent0-semantic-search.dawid-pisarczyk.workers.dev/api/v1/search';
@@ -477,18 +478,12 @@ export default function ApiDocsPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="font-mono">11155111</Badge>
-                  <span className="text-sm">Ethereum Sepolia</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="font-mono">84532</Badge>
-                  <span className="text-sm">Base Sepolia</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="font-mono">80002</Badge>
-                  <span className="text-sm">Polygon Amoy</span>
-                </div>
+                {getAvailableChains().map((chain) => (
+                  <div key={chain.id} className="flex items-center gap-2">
+                    <Badge variant="outline" className="font-mono">{chain.id}</Badge>
+                    <span className="text-sm">{chain.name}</span>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>

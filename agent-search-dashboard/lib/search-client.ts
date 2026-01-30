@@ -7,24 +7,29 @@ const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || 'https://agent0-semanti
  * Implements the service's v1 search schema
  */
 export async function searchAgents(request: StandardSearchRequest): Promise<StandardSearchResponse> {
+  // Build body explicitly so chains is never dropped (JSON.stringify omits undefined)
+  const body: Record<string, unknown> = {
+    query: request.query,
+    limit: request.limit ?? 10,
+    offset: request.offset,
+    cursor: request.cursor,
+    filters: request.filters,
+    minScore: request.minScore,
+    includeMetadata: request.includeMetadata ?? true,
+    name: request.name,
+    sort: request.sort,
+  };
+  if (request.chains !== undefined) {
+    body.chains = request.chains;
+  }
+
   const response = await fetch(`${WORKER_URL}/api/v1/search`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'X-Request-ID': crypto.randomUUID(),
     },
-    body: JSON.stringify({
-      query: request.query,
-      limit: request.limit || 10,
-      offset: request.offset,
-      cursor: request.cursor,
-      filters: request.filters,
-      minScore: request.minScore,
-      includeMetadata: request.includeMetadata ?? true,
-      name: request.name,
-      chains: request.chains,
-      sort: request.sort,
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {

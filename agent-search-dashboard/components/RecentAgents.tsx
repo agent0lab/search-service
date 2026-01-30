@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { CheckCircle2, XCircle, ChevronRight, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { CHAIN_NAMES, getChainColor } from '@/lib/chain-config';
 
 interface RecentAgent {
   agentId: string;
@@ -19,21 +20,6 @@ interface RecentAgent {
   active: boolean;
   agentURI?: string;
 }
-
-const CHAIN_NAMES: Record<number, string> = {
-  11155111: 'Ethereum Sepolia',
-  84532: 'Base Sepolia',
-  80002: 'Polygon Amoy',
-};
-
-const getChainColor = (chainId: number) => {
-  const colors: Record<number, string> = {
-    11155111: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-    84532: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-    80002: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
-  };
-  return colors[chainId] || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
-};
 
 function formatDate(dateString: string) {
   const date = new Date(dateString);
@@ -103,7 +89,7 @@ function AgentCard({ agent, agentUrl, getChainColor }: { agent: RecentAgent; age
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="outline" className={`text-xs ${getChainColor(agent.chainId)}`}>
-                  {CHAIN_NAMES[agent.chainId]?.split(' ')[0] || `Chain ${agent.chainId}`}
+                  {CHAIN_NAMES[agent.chainId] ?? `Chain ${agent.chainId}`}
                 </Badge>
                 <Badge variant={agent.active ? 'default' : 'secondary'} className="text-xs">
                   {agent.active ? (

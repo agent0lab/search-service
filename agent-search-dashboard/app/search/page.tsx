@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Skeleton } from '@/components/ui/skeleton';
 import { searchAgents } from '@/lib/search-client';
 import type { StandardSearchResult, StandardSearchResponse, StandardFilters, StandardSearchRequest } from '@/lib/types';
+import { getAvailableChains } from '@/lib/chain-config';
 import { AgentCard } from '@/components/agent/AgentCard';
 import { LiquidEtherBackground } from '@/components/LiquidEtherBackground';
 import { Header } from '@/components/Header';
@@ -257,12 +258,8 @@ function SearchContent() {
   // Update URL only after a search is performed, not on every keystroke
   // This is handled in handleSearch instead
   
-  // Available filter options - only supported chains
-  const availableChainIds = [
-    { id: 11155111, name: 'Ethereum Sepolia' },
-    { id: 84532, name: 'Base Sepolia' },
-    { id: 80002, name: 'Polygon Amoy' },
-  ];
+  // Available filter options - chains with configured subgraph endpoints
+  const availableChainIds = getAvailableChains();
 
   const handleSearch = useCallback(async (useCursor = false, newOffset = 0) => {
     if (!query.trim()) {
@@ -287,14 +284,15 @@ function SearchContent() {
       const filters: StandardFilters = {};
       
       // Chain IDs - use chains parameter instead of/in addition to filters
-      // The backend will handle chains parameter and merge it into filters
+      // The backend will handle chains parameter and merge it into filters.
+      // Ensure we send numbers (not strings) for chain IDs.
       let chainsParam: number[] | 'all' | undefined = undefined;
       if (selectedChainIds.length > 0) {
         if (selectedChainIds.length === availableChainIds.length) {
           // All chains selected - use 'all'
           chainsParam = 'all';
         } else {
-          chainsParam = selectedChainIds;
+          chainsParam = selectedChainIds.map((id) => Number(id)).filter((n) => Number.isInteger(n));
         }
       }
       
@@ -1429,7 +1427,7 @@ function SearchContent() {
                               </TableCell>
                               <TableCell className="w-[10%]">
                                 <Badge variant="outline" className="font-mono text-xs">
-                                  {getChainName(result.chainId).split(' ')[0]}
+                                  {getChainName(result.chainId)}
                                 </Badge>
                               </TableCell>
                               <TableCell className="w-[10%]">

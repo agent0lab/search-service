@@ -129,7 +129,7 @@ export function AgentCard({ result, agentImage, getChainName, formatAgentId, age
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="outline" className={`text-xs font-mono ${getChainColor(result.chainId)}`}>
-                  {getChainName(result.chainId).split(' ')[0]}
+                  {getChainName(result.chainId)}
                 </Badge>
                 {active !== undefined && (
                   <Badge variant={active ? 'default' : 'secondary'} className="text-xs">

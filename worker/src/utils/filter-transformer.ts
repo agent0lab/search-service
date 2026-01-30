@@ -15,7 +15,7 @@ export function transformStandardFiltersToPinecone(
   const existsFields: string[] = [];
   const notExistsFields: string[] = [];
 
-  // Handle equals operator - direct value assignment
+  // Handle equals operator - direct value (Pinecone accepts both direct and $eq)
   if (filters.equals) {
     for (const [field, value] of Object.entries(filters.equals)) {
       pineconeFilter[field] = value;
