@@ -41,7 +41,7 @@ export interface ChainSyncMessage {
  * Validation constants for production readiness
  */
 export const MAX_QUERY_LENGTH = 1000;
-export const MAX_TOP_K = 100;
+export const MAX_TOP_K = 1000;
 
 /**
  * Rate limiting configuration

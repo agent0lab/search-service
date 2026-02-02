@@ -516,7 +516,7 @@ maybeDescribe('V1 API', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: 'agent',
-          limit: 1000,
+          limit: 1001,
         }),
       });
 

@@ -20,7 +20,7 @@ const SEARCH_REQUEST_SCHEMA = {
     limit: {
       type: 'integer',
       minimum: 1,
-      maximum: 100,
+      maximum: 1000,
       default: 10,
       description: 'Maximum number of results to return',
     },

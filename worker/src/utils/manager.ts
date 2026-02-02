@@ -221,7 +221,7 @@ export class SemanticSearchManager {
     // with a buffer to account for post-filtering that may reduce results
     const requiredTopK = effectiveOffset + limit * filterMultiplier;
     
-    // Cap at MAX_TOP_K (100) to respect Pinecone's maximum topK limit
+    // Cap at MAX_TOP_K (1000) to respect our limit; Pinecone supports up to 10,000
     // If requiredTopK exceeds MAX_TOP_K, we can't fetch enough results
     // This should be caught by validation middleware, but we handle it gracefully here too
     const queryTopK = Math.min(requiredTopK, MAX_TOP_K);
