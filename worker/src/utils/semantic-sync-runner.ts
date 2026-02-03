@@ -155,8 +155,8 @@ export class SemanticSyncRunner {
           maxUpdatedAt = updatedAt;
         }
 
-        const agentId = agent.id;
         const agentChainId = Number(agent.chainId);
+        const agentId = this.normalizeAgentId(agentChainId, agent.id); // canonical "chainId:tokenId"
 
         if (!agent.registrationFile) {
           toDelete.push({ chainId: agentChainId, agentId });
@@ -323,9 +323,18 @@ export class SemanticSyncRunner {
     return result.data?.agents || [];
   }
 
+  /**
+   * Normalize agent id to "chainId:tokenId" so index and SDKs are consistent.
+   * Subgraph entity `id` may be tokenId only (e.g. "123") or already "chainId:tokenId" depending on deployment.
+   */
+  private normalizeAgentId(chainId: number, rawId: string): string {
+    return rawId.includes(':') ? rawId : `${chainId}:${rawId}`;
+  }
+
   private convertToSemanticAgentRecord(agent: SubgraphAgent): SemanticAgentRecord {
     const chainId = Number(agent.chainId);
     const reg = agent.registrationFile!;
+    const agentId = this.normalizeAgentId(chainId, agent.id);
 
     const supportedTrusts = normalizeStringArray(reg.supportedTrusts);
     const mcpTools = normalizeStringArray(reg.mcpTools);
@@ -373,7 +382,7 @@ export class SemanticSyncRunner {
     
     return {
       chainId,
-      agentId: agent.id, // Format: "chainId:tokenId"
+      agentId,
       name: reg.name ?? '',
       description: reg.description ?? '',
       capabilities: capabilities ?? [],
