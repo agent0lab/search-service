@@ -313,7 +313,9 @@ export class SemanticSearchManager {
 
     // Build results
     const results: StandardSearchResult[] = paginatedMatches.map((match, index) => {
-      const { chainId, agentId } = SemanticSearchManager.parseVectorId(match.id);
+      const { chainId, agentId: rawAgentId } = SemanticSearchManager.parseVectorId(match.id);
+      // Normalize agentId to "chainId:tokenId" for API consistency (SDK expects colon format)
+      const agentId = rawAgentId.includes(':') ? rawAgentId : `${chainId}:${rawAgentId}`;
       const metadata = match.metadata || {};
       const name = typeof metadata.name === 'string' ? metadata.name : '';
       const description = typeof metadata.description === 'string' ? metadata.description : '';
