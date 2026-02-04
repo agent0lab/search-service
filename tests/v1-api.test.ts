@@ -79,6 +79,12 @@ maybeDescribe('V1 API', () => {
         expect(data.supportedOperators).toContain(op);
       }
     });
+
+    it('should report maxLimit 5000', async () => {
+      const res = await fetch(`${V1_BASE}/capabilities`);
+      const data = await asJson(res);
+      expect(data.limits.maxLimit).toBe(5000);
+    });
   });
 
   describe('GET /api/v1/health', () => {
@@ -347,27 +353,23 @@ maybeDescribe('V1 API', () => {
       expect(res.status).not.toBe(400);
     });
 
-    it('should validate maximum offset based on limit and Pinecone constraints', async () => {
-      // With limit=10, max offset should be 70 (100 - 10*3)
+    it('should validate maximum offset based on limit and MAX_TOP_K', async () => {
+      // With limit=10, max offset = MAX_TOP_K - (10*3) = 5000 - 30 = 4970
       const res = await fetch(`${V1_BASE}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: 'agent',
           limit: 10,
-          offset: 100, // Should exceed max
+          offset: 5000, // Should exceed max
         }),
       });
 
-      // May be 400 (validation error) or 429 (rate limit) - both are acceptable
-      // If 400, check the error message
       if (res.status === 400) {
         const data = await asJson(res);
         expect(data).toHaveProperty('error');
         expect(data.error).toContain('offset cannot exceed');
-        expect(data.error).toContain('Consider using cursor-based pagination');
       } else {
-        // Rate limited - skip validation check but test still passes
         expect([400, 429]).toContain(res.status);
       }
     });
@@ -482,7 +484,7 @@ maybeDescribe('V1 API', () => {
       }
     });
 
-    it('should include rate limit headers', async () => {
+    it('should include rate limit headers (20 per minute)', async () => {
       const res = await fetch(`${V1_BASE}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -492,7 +494,7 @@ maybeDescribe('V1 API', () => {
         }),
       });
 
-      expect(res.headers.get('X-RateLimit-Limit')).toBeTruthy();
+      expect(res.headers.get('X-RateLimit-Limit')).toBe('20');
       expect(res.headers.get('X-RateLimit-Remaining')).toBeTruthy();
       expect(res.headers.get('X-RateLimit-Reset')).toBeTruthy();
     });
@@ -510,17 +512,35 @@ maybeDescribe('V1 API', () => {
       expect(res.status).toBe(400);
     });
 
-    it('should return 400 for limit exceeding max', async () => {
+    it('should return 400 for limit exceeding max (5000)', async () => {
       const res = await fetch(`${V1_BASE}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: 'agent',
-          limit: 1001,
+          limit: 5001,
         }),
       });
 
       expect(res.status).toBe(400);
+    });
+
+    it('should accept limit up to 5000', async () => {
+      const res = await fetch(`${V1_BASE}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: 'agent',
+          limit: 5000,
+        }),
+      });
+
+      expect(res.status).not.toBe(400);
+      if (res.status === 200) {
+        const data = await asJson(res);
+        expect(data).toHaveProperty('results');
+        expect(Array.isArray(data.results)).toBe(true);
+      }
     });
 
     it('should return 400 for invalid minScore', async () => {
@@ -533,6 +553,207 @@ maybeDescribe('V1 API', () => {
         }),
       });
 
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe('POST /api/v1/search (comprehensive)', () => {
+    it('returns results with valid vectorId format (chainId-agentId)', async () => {
+      const res = await fetch(`${V1_BASE}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: 'agent', limit: 5 }),
+      });
+      if (res.status !== 200) return;
+      const data = await asJson(res);
+      for (const r of data.results || []) {
+        expect(r.vectorId).toMatch(/^\d+-\d+/);
+        expect(r.agentId).toMatch(/^\d+:\d+/);
+        expect(r.chainId).toBeGreaterThanOrEqual(0);
+      }
+    });
+
+    it('applies name substring post-filter when name param provided', async () => {
+      const res = await fetch(`${V1_BASE}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: 'agent', limit: 10, name: 'agent' }),
+      });
+      if (res.status !== 200) return;
+      const data = await asJson(res);
+      const nameLower = 'agent'.toLowerCase();
+      for (const r of data.results || []) {
+        expect((r.name || '').toLowerCase()).toContain(nameLower);
+      }
+    });
+
+    it('applies description substring post-filter when description param provided', async () => {
+      const res = await fetch(`${V1_BASE}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: 'agent', limit: 10, description: 'agent' }),
+      });
+      if (res.status !== 200) return;
+      const data = await asJson(res);
+      const descLower = 'agent'.toLowerCase();
+      for (const r of data.results || []) {
+        expect((r.description || '').toLowerCase()).toContain(descLower);
+      }
+    });
+
+    it('respects chains param (single chain)', async () => {
+      const res = await fetch(`${V1_BASE}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: 'agent', limit: 10, chains: [11155111] }),
+      });
+      if (res.status !== 200) return;
+      const data = await asJson(res);
+      for (const r of data.results || []) {
+        expect(r.chainId).toBe(11155111);
+      }
+    });
+
+    it('respects chains param (multiple chains)', async () => {
+      const res = await fetch(`${V1_BASE}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: 'agent', limit: 10, chains: [1, 11155111] }),
+      });
+      if (res.status !== 200) return;
+      const data = await asJson(res);
+      const allowed = new Set([1, 11155111]);
+      for (const r of data.results || []) {
+        expect(allowed.has(r.chainId)).toBe(true);
+      }
+    });
+
+    it('respects filters.equals.chainId', async () => {
+      const res = await fetch(`${V1_BASE}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: 'agent',
+          limit: 10,
+          filters: { equals: { chainId: 11155111 } },
+        }),
+      });
+      if (res.status !== 200) return;
+      const data = await asJson(res);
+      for (const r of data.results || []) {
+        expect(r.chainId).toBe(11155111);
+      }
+    });
+
+    it('respects filters.in.chainId', async () => {
+      const res = await fetch(`${V1_BASE}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: 'agent',
+          limit: 10,
+          filters: { in: { chainId: [1, 11155111] } },
+        }),
+      });
+      if (res.status !== 200) return;
+      const data = await asJson(res);
+      const allowed = new Set([1, 11155111]);
+      for (const r of data.results || []) {
+        expect(allowed.has(r.chainId)).toBe(true);
+      }
+    });
+
+    it('respects sort option (updatedAt:desc)', async () => {
+      const res = await fetch(`${V1_BASE}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: 'agent',
+          limit: 5,
+          sort: ['updatedAt:desc'],
+        }),
+      });
+      if (res.status !== 200) return;
+      const data = await asJson(res);
+      const results = data.results || [];
+      if (results.length < 2) return;
+      const metadata = results.map((r: any) => r.metadata?.updatedAt ?? '');
+      for (let i = 1; i < metadata.length; i++) {
+        const a = metadata[i - 1];
+        const b = metadata[i];
+        if (a && b) {
+          expect(new Date(b).getTime()).toBeLessThanOrEqual(new Date(a).getTime());
+        }
+      }
+    });
+
+    it('returns pagination with hasMore and nextCursor when more results exist', async () => {
+      const res = await fetch(`${V1_BASE}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: 'agent', limit: 5 }),
+      });
+      if (res.status !== 200) return;
+      const data = await asJson(res);
+      expect(data).toHaveProperty('pagination');
+      expect(data.pagination).toHaveProperty('hasMore');
+      expect(data.pagination).toHaveProperty('limit', 5);
+      if (data.pagination.hasMore) {
+        expect(data.pagination.nextCursor).toBeTruthy();
+      }
+    });
+
+    it('cursor pagination returns disjoint results', async () => {
+      const page1 = await fetch(`${V1_BASE}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: 'agent', limit: 3 }),
+      });
+      if (page1.status !== 200) return;
+      const data1 = await asJson(page1);
+      if (!data1.pagination?.nextCursor || data1.results.length === 0) return;
+      const page2 = await fetch(`${V1_BASE}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: 'agent', limit: 3, cursor: data1.pagination.nextCursor }),
+      });
+      if (page2.status !== 200) return;
+      const data2 = await asJson(page2);
+      const ids1 = new Set((data1.results || []).map((r: any) => r.vectorId));
+      for (const r of data2.results || []) {
+        expect(ids1.has(r.vectorId)).toBe(false);
+      }
+    });
+
+    it('combined filters: chains + equals.active returns valid results', async () => {
+      const res = await fetch(`${V1_BASE}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: 'agent',
+          limit: 5,
+          chains: [11155111],
+          filters: { equals: { active: true } },
+        }),
+      });
+      expect(res.status).not.toBe(400);
+      if (res.status === 200) {
+        const data = await asJson(res);
+        for (const r of data.results || []) {
+          expect(r.chainId).toBe(11155111);
+          if (r.metadata?.active !== undefined) {
+            expect(r.metadata.active).toBe(true);
+          }
+        }
+      }
+    });
+
+    it('rejects invalid description type', async () => {
+      const res = await fetch(`${V1_BASE}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: 'agent', description: 123 }),
+      });
       expect(res.status).toBe(400);
     });
   });

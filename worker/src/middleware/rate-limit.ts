@@ -3,7 +3,7 @@ import type { D1Database } from '@cloudflare/workers-types';
 import type { Env } from '../types.js';
 import { createErrorResponse, ErrorCode } from '../utils/errors.js';
 
-const DEFAULT_REQUESTS_PER_MINUTE = 6;
+const DEFAULT_REQUESTS_PER_MINUTE = 20;
 const WINDOW_SIZE_MS = 60 * 1000; // 1 minute
 
 /**
