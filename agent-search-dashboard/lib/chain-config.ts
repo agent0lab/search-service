@@ -1,6 +1,7 @@
 import { getSubgraphEndpoints } from './subgraph-endpoints';
 
 export const CHAIN_NAMES: Record<number, string> = {
+  3448148188: 'TRON Nile',
   1: 'Ethereum Mainnet',
   11155111: 'Ethereum Sepolia',
   84532: 'Base Sepolia',
@@ -9,6 +10,7 @@ export const CHAIN_NAMES: Record<number, string> = {
 
 export function getChainColor(chainId: number): string {
   const colors: Record<number, string> = {
+    3448148188: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200',
     1: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
     11155111: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
     84532: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',

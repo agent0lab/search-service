@@ -16,11 +16,9 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "~/*": ["./worker/src/*"],
-      "agent0-ts/*": ["../agent0-ts/src/*"]
+      "~/*": ["./worker/src/*"]
     }
   },
   "include": ["worker/**/*", "tests/**/*"],
   "exclude": ["node_modules", ".wrangler", "dist"]
 }
-
