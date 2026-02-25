@@ -18,7 +18,9 @@ command = ""
 # - PINECONE_NAMESPACE: Pinecone namespace (if using namespaces)
 
 [vars]
-# Non-secret environment variables can be added here
+# Default runtime providers
+EMBEDDING_PROVIDER = "openai"
+VECTOR_STORE_PROVIDER = "pgvector"
 
 # Cron triggers for automatic indexing
 # Schedule: every 15 minutes
@@ -50,4 +52,3 @@ enabled = true
 head_sampling_rate = 1
 invocation_logs = true
 persist = true
-

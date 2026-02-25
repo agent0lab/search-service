@@ -2,8 +2,7 @@ import type { MessageBatch } from '@cloudflare/workers-types';
 import type { Env, ChainSyncMessage } from './types.js';
 import { SDK } from 'agent0-sdk';
 import { SemanticSyncRunner, type SemanticSyncRunnerOptions } from './utils/semantic-sync-runner.js';
-import { PineconeVectorStore } from './utils/providers/pinecone-vector-store.js';
-import { VeniceEmbeddingProvider } from './utils/providers/venice-embedding.js';
+import { resolveSemanticSearchProvidersFromEnv } from './utils/config.js';
 import { D1SemanticSyncStateStoreV2 } from './utils/d1-sync-state-store-v2.js';
 import { SyncLockManager } from './utils/sync-lock.js';
 import { SyncLogger } from './utils/sync-logger.js';
@@ -137,38 +136,35 @@ async function processChainSync(
     // Create sync state store
     const stateStore = new D1SemanticSyncStateStoreV2(env.DB);
 
-    // Create embedding provider
-    const embeddingProvider = new VeniceEmbeddingProvider({
-      apiKey: env.VENICE_API_KEY,
-      model: 'text-embedding-bge-m3',
-    });
-
-    // Create Pinecone vector store
-    const pineconeStore = new PineconeVectorStore({
-      apiKey: env.PINECONE_API_KEY,
-      index: env.PINECONE_INDEX,
-      namespace: env.PINECONE_NAMESPACE,
-    });
-
-    // Initialize Pinecone
-    try {
-      await pineconeStore.initialize();
-      console.log(`[queue] Pinecone initialized for chain ${chainId}`);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to initialize Pinecone for chain ${chainId}: ${errorMessage}`);
+    // Resolve runtime providers from environment.
+    const providers = resolveSemanticSearchProvidersFromEnv(env);
+    if (providers.vectorStore.initialize) {
+      try {
+        await providers.vectorStore.initialize();
+        console.log(`[queue] Vector store initialized for chain ${chainId}`);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to initialize vector store for chain ${chainId}: ${errorMessage}`);
+      }
     }
 
     // Resolve subgraph URL for this chain (message override > D1/env/defaults)
     const resolvedSubgraphUrl =
       message.subgraphUrl ?? (await resolveSubgraphUrlForChain(env.DB, env as unknown as Record<string, unknown>, chainId));
 
-    // Initialize SDK (optional, mainly for subgraph URL resolution if needed)
-    const sdk = new SDK({
-      chainId,
-      rpcUrl: env.RPC_URL,
-      ...(resolvedSubgraphUrl ? { subgraphOverrides: { [chainId]: resolvedSubgraphUrl } } : {}),
-    });
+    // Initialize SDK on a best-effort basis.
+    // For custom/non-EVM chain IDs, SDK init may fail, but subgraph-based sync can still proceed.
+    let sdk: SDK | undefined;
+    try {
+      sdk = new SDK({
+        chainId,
+        rpcUrl: env.RPC_URL,
+        ...(resolvedSubgraphUrl ? { subgraphOverrides: { [chainId]: resolvedSubgraphUrl } } : {}),
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`[queue] SDK init skipped for chain ${chainId}: ${errorMessage}`);
+    }
 
     // Create event logger for detailed event tracking
     const eventLogger = message.logId ? new SyncEventLogger(env.DB) : null;
@@ -179,8 +175,8 @@ async function processChainSync(
     const options: SemanticSyncRunnerOptions = {
       batchSize,
       stateStore,
-      embeddingProvider,
-      vectorStoreProvider: pineconeStore,
+      embeddingProvider: providers.embedding,
+      vectorStoreProvider: providers.vectorStore,
       logger: (event: string, extra?: Record<string, unknown>) => {
         console.log(`[queue:chain-${chainId}] ${event}`, extra ?? {});
         

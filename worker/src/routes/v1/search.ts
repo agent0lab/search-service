@@ -6,7 +6,7 @@ import type { Context } from 'hono';
 import type { Env } from '../../types.js';
 import type { StandardSearchRequest, StandardSearchResponse } from '../../utils/standard-types.js';
 import { SemanticSearchManager } from '../../utils/manager.js';
-import { resolveSemanticSearchProviders } from '../../utils/config.js';
+import { resolveSemanticSearchProvidersFromEnv } from '../../utils/config.js';
 import { RequestLogger } from '../../utils/request-logger.js';
 import { createErrorResponse, ErrorCode } from '../../utils/errors.js';
 import { getRequestId } from '../../middleware/request-id.js';
@@ -56,19 +56,8 @@ export async function searchHandlerV1(c: Context<{ Bindings: Env }>): Promise<Re
   }
 
   try {
-    // Initialize providers from environment
-    const providers = resolveSemanticSearchProviders({
-      embedding: {
-        provider: 'venice',
-        apiKey: c.env.VENICE_API_KEY,
-      },
-      vectorStore: {
-        provider: 'pinecone',
-        apiKey: c.env.PINECONE_API_KEY,
-        index: c.env.PINECONE_INDEX,
-        namespace: c.env.PINECONE_NAMESPACE,
-      },
-    });
+    // Initialize providers from environment (runtime-configurable).
+    const providers = resolveSemanticSearchProvidersFromEnv(c.env);
 
     // Create search manager
     const manager = new SemanticSearchManager(providers.embedding, providers.vectorStore);
@@ -124,4 +113,3 @@ export async function searchHandlerV1(c: Context<{ Bindings: Env }>): Promise<Re
     return c.json(errorResponse, errorResponse.status as any);
   }
 }
-

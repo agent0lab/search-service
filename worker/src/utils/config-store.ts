@@ -4,7 +4,8 @@ import { getDefaultSubgraphEndpoints, type SubgraphEndpointMap } from './subgrap
 /**
  * Default configuration values
  */
-const DEFAULT_CHAINS = [1, 11155111]; // Ethereum Mainnet, Ethereum Sepolia
+// Default to TRON Nile for local/self-hosted deployments in this repo.
+const DEFAULT_CHAINS = [3448148188]; // TRON Nile Testnet (unsigned CAIP-2 chainId)
 const DEFAULT_CRON_INTERVAL = '*/15 * * * *'; // Every 15 minutes
 const DEFAULT_SUBGRAPH_URLS = getDefaultSubgraphEndpoints();
 
@@ -169,4 +170,3 @@ export async function initializeDefaults(db: D1Database): Promise<void> {
     // Don't throw - allow service to continue with hardcoded defaults
   }
 }
-

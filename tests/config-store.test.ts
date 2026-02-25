@@ -51,7 +51,7 @@ describe('Config Store', () => {
   describe('getChains', () => {
     it('should return default chains when no config exists', async () => {
       const chains = await getChains(db);
-      expect(chains).toEqual([1, 11155111]);
+      expect(chains).toEqual([3448148188]);
     });
 
     it('should return configured chains from D1', async () => {
@@ -59,7 +59,7 @@ describe('Config Store', () => {
       // In a real scenario with actual D1, the query would return the stored value
       const chains = await getChains(db);
       // Should return defaults when no config exists
-      expect(chains).toEqual([1, 11155111]);
+      expect(chains).toEqual([3448148188]);
     });
   });
 
@@ -96,4 +96,3 @@ describe('Config Store', () => {
     });
   });
 });
-

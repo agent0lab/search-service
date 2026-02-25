@@ -2,13 +2,29 @@
  * Cloudflare Workers environment bindings
  */
 export interface Env {
+  // Provider selection
+  EMBEDDING_PROVIDER?: string; // "openai" (default) | "venice"
+  VECTOR_STORE_PROVIDER?: string; // "pgvector" (default) | "pinecone"
+
   // Venice AI
-  VENICE_API_KEY: string;
+  VENICE_API_KEY?: string;
+  VENICE_MODEL?: string;
+
+  // OpenAI embeddings
+  OPENAI_API_KEY?: string;
+  OPENAI_EMBEDDING_MODEL?: string;
+  OPENAI_EMBEDDING_BASE_URL?: string;
+  OPENAI_EMBEDDING_API_VERSION?: string;
   
   // Pinecone
-  PINECONE_API_KEY: string;
-  PINECONE_INDEX: string;
+  PINECONE_API_KEY?: string;
+  PINECONE_INDEX?: string;
   PINECONE_NAMESPACE?: string;
+
+  // PostgreSQL + pgvector
+  PGVECTOR_DATABASE_URL?: string;
+  PGVECTOR_TABLE?: string;
+  PGVECTOR_DIMENSION?: string;
   
   // D1 Database for sync state storage
   DB: D1Database;
@@ -56,4 +72,3 @@ export interface RateLimitConfig {
  */
 export const PROVIDER_NAME = 'agent0-semantic-search';
 export const PROVIDER_VERSION = '1.0.0';
-

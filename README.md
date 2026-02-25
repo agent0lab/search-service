@@ -1,6 +1,6 @@
 # Agent0 Semantic Search Service
 
-Standalone semantic search service for ERC-8004 agents using Cloudflare Workers, Venice AI embeddings, and Pinecone vector storage. This service exposes a **v1 search service schema** (request/response shapes and error format) that clients can integrate with.
+Standalone semantic search service for ERC-8004 agents using Cloudflare Workers, OpenAI embeddings, and pgvector storage. This service exposes a **v1 search service schema** (request/response shapes and error format) that clients can integrate with.
 
 The service also includes a [public-facing dashboard](./agent-search-dashboard/README.md) for searching and exploring agents, with an admin section for monitoring and managing the service.
 
@@ -8,8 +8,8 @@ The service also includes a [public-facing dashboard](./agent-search-dashboard/R
 
 - **Semantic Search**: Natural language queries to find relevant agents
 - **Automatic Indexing**: Scheduled cron jobs to keep index in sync with ERC-8004 registry
-- **Vector Embeddings**: Uses Venice AI for high-quality embeddings
-- **Vector Storage**: Pinecone for scalable vector search
+- **Vector Embeddings**: Uses OpenAI (or Venice) for high-quality embeddings
+- **Vector Storage**: Uses pgvector (or Pinecone) for scalable vector search
 - **Queue-Based Processing**: Cloudflare Queues for reliable indexing operations
 - **State Management**: D1 database for sync state and configuration
 - **Serverless**: Deployed on Cloudflare Workers for global edge deployment
@@ -33,8 +33,8 @@ Before setting up the service, ensure you have:
   - Cloudflare Workers (free tier available)
   - D1 Database (free tier available)
   - Cloudflare Queues (paid plan 5$ a month)
-- **Venice AI account** and API key ([get one here](https://venice.ai))
-- **Pinecone account**, API key, and index ([get one here](https://www.pinecone.io))
+- **OpenAI API key** for embeddings (or Venice AI key)
+- **PostgreSQL with pgvector** (or Pinecone)
 - **Ethereum RPC endpoint** (for indexing service to access blockchain data)
   - Options: Alchemy, Infura, QuickNode, or your own node
 
@@ -192,13 +192,19 @@ Pinecone is used as the vector database for storing and searching embeddings.
 Set secrets via Wrangler CLI:
 
 ```bash
-wrangler secret put VENICE_API_KEY
-wrangler secret put PINECONE_API_KEY
-wrangler secret put PINECONE_INDEX
+wrangler secret put OPENAI_API_KEY
+wrangler secret put PGVECTOR_DATABASE_URL
 wrangler secret put RPC_URL
 
 # Optional
+wrangler secret put OPENAI_EMBEDDING_MODEL
+wrangler secret put OPENAI_EMBEDDING_BASE_URL
+wrangler secret put PGVECTOR_TABLE
+wrangler secret put PGVECTOR_DIMENSION
+wrangler secret put VENICE_API_KEY
 wrangler secret put PINECONE_NAMESPACE
+wrangler secret put PINECONE_API_KEY
+wrangler secret put PINECONE_INDEX
 ```
 
 Each command will prompt you to enter the secret value.
@@ -206,13 +212,22 @@ Each command will prompt you to enter the secret value.
 ### Environment Variables
 
 **Required:**
-- `VENICE_API_KEY`: Venice AI API key for embeddings
-- `PINECONE_API_KEY`: Pinecone API key
-- `PINECONE_INDEX`: Pinecone index name
+- `EMBEDDING_PROVIDER`: Embedding provider name (`openai` default, `venice` supported)
+- `VECTOR_STORE_PROVIDER`: Vector store provider name (`pgvector` default, `pinecone` supported)
 - `RPC_URL`: Ethereum RPC endpoint URL (for blockchain access during indexing)
 
 **Optional:**
+- `VENICE_API_KEY`: Required if `EMBEDDING_PROVIDER=venice`
+- `VENICE_MODEL`: Override Venice embedding model (default: `text-embedding-bge-m3`)
+- `OPENAI_API_KEY`: Required if `EMBEDDING_PROVIDER=openai`
+- `OPENAI_EMBEDDING_MODEL`: OpenAI embedding model (default: `text-embedding-3-small`)
+- `OPENAI_EMBEDDING_BASE_URL`: Override OpenAI embeddings endpoint
+- `PINECONE_API_KEY`: Required if `VECTOR_STORE_PROVIDER=pinecone`
+- `PINECONE_INDEX`: Required if `VECTOR_STORE_PROVIDER=pinecone`
 - `PINECONE_NAMESPACE`: Pinecone namespace (if using namespaces)
+- `PGVECTOR_DATABASE_URL`: Required if `VECTOR_STORE_PROVIDER=pgvector`
+- `PGVECTOR_TABLE`: Optional pgvector table name (default: `semantic_vectors`)
+- `PGVECTOR_DIMENSION`: Optional vector dimension (default: `1536`; use `1024` for Venice bge-m3)
 
 ## Initialization
 

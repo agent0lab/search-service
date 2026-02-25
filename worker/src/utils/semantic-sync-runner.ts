@@ -66,6 +66,14 @@ interface SubgraphAgent {
   } | null;
 }
 
+// Graph mappings may emit TRON Nile as signed i32 overflow; normalize to unsigned CAIP-style chainId.
+const TRON_NILE_CHAIN_ID_SIGNED = -846819108;
+const TRON_NILE_CHAIN_ID_UNSIGNED = 3448148188;
+
+function normalizeChainId(chainId: number): number {
+  return chainId === TRON_NILE_CHAIN_ID_SIGNED ? TRON_NILE_CHAIN_ID_UNSIGNED : chainId;
+}
+
 /**
  * Local implementation of SemanticSyncRunner that uses:
  * - Official agent0-sdk for subgraph queries (optional, mainly for subgraph URL resolution)
@@ -155,7 +163,7 @@ export class SemanticSyncRunner {
           maxUpdatedAt = updatedAt;
         }
 
-        const agentChainId = Number(agent.chainId);
+        const agentChainId = normalizeChainId(Number(agent.chainId));
         const agentId = this.normalizeAgentId(agentChainId, agent.id); // canonical "chainId:tokenId"
 
         if (!agent.registrationFile) {
@@ -328,11 +336,21 @@ export class SemanticSyncRunner {
    * Subgraph entity `id` may be tokenId only (e.g. "123") or already "chainId:tokenId" depending on deployment.
    */
   private normalizeAgentId(chainId: number, rawId: string): string {
-    return rawId.includes(':') ? rawId : `${chainId}:${rawId}`;
+    if (!rawId.includes(':')) {
+      return `${chainId}:${rawId}`;
+    }
+
+    const [rawChainId, tokenId] = rawId.split(':', 2);
+    const parsed = Number(rawChainId);
+    if (Number.isNaN(parsed)) {
+      return rawId;
+    }
+    const normalized = normalizeChainId(parsed);
+    return `${normalized}:${tokenId}`;
   }
 
   private convertToSemanticAgentRecord(agent: SubgraphAgent): SemanticAgentRecord {
-    const chainId = Number(agent.chainId);
+    const chainId = normalizeChainId(Number(agent.chainId));
     const reg = agent.registrationFile!;
     const agentId = this.normalizeAgentId(chainId, agent.id);
 
@@ -408,4 +426,3 @@ function normalizeStringArray(values?: Array<string | null> | null): string[] | 
   // Treat as set: de-dupe + sort for deterministic behavior.
   return Array.from(new Set(cleaned)).sort((a, b) => a.localeCompare(b));
 }
-
